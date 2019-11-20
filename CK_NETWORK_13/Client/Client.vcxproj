@@ -139,9 +139,16 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="matrix.h" />
     <ClInclude Include="network.h" />
+    <ClInclude Include="Object.h" />
     <ClInclude Include="sharedQueue.h" />
     <ClInclude Include="singleton.h" />
+    <ClInclude Include="vector.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="clientMain.cpp" />
+    <ClCompile Include="vector.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

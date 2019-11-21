@@ -84,6 +84,10 @@ struct vector2
 	{
 		return vector2{ this->x - rhs.x, this->y - rhs.y };
 	}
+	const vector2 operator-() const
+	{
+		return vector2{ -this->x, -this->y };
+	}
 	const vector2 operator*(const vector2 &rhs) const
 	{
 		return vector2{ this->x * rhs.x, this->y * rhs.y };

@@ -1,5 +1,6 @@
 #pragma once
 #include "Matrix.h"
+#include <cmath>
 
 class vector2;
 class vector2Int;

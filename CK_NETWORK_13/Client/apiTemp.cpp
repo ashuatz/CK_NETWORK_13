@@ -1,9 +1,9 @@
 
 /*
-13ÁÖÂ÷
-	ÆÄÀÏÀÔÃâ·Â :
+13ì£¼ì°¨
+	íŒŒì¼ì…ì¶œë ¥ :
 
-	ÈÅ :
+	í›… :
 	SendMessageCallback(...);
 
 	HHOOK hKeyHook = SetWindowsHookEx(WH_KEYBOARD, KeyHookProc, 0, GetCurrentThreadId());
@@ -11,12 +11,12 @@
 		WindowHook_<EVENT_NAME> => WH_EVENT
 
 
-	¸Ş½ÃÁö ·çÇÁ :
+	ë©”ì‹œì§€ ë£¨í”„ :
 	while (true)
 	{
 		if (PeekMessage(&Message, 0, 0, 0, PM_REMOVE))
 		{
-			//¸Ş½ÃÁö Ã³¸® ·çÇÁ
+			//ë©”ì‹œì§€ ì²˜ë¦¬ ë£¨í”„
 			if (Message.message == WM_QUIT) break;
 
 			TranslateMessage(&Message);
@@ -24,19 +24,19 @@
 		}
 		else
 		{
-			//ÀÏ¹İ ¾÷µ¥ÀÌÆ® Ã³¸® ·çÇÁ
+			//ì¼ë°˜ ì—…ë°ì´íŠ¸ ì²˜ë¦¬ ë£¨í”„
 			...
 		}
 	}
 
 
-12ÁÖÂ÷
-	Å×Æ®¸®½º
+12ì£¼ì°¨
+	í…ŒíŠ¸ë¦¬ìŠ¤
 
-11ÁÖÂ÷
-´ëÈ­»óÀÚ
-	Modal		: DialogBox		: ÀüÈ¯ ºÒ°¡
-	Modeless	: CreateDialog	: ÀüÈ¯ °¡´É
+11ì£¼ì°¨
+ëŒ€í™”ìƒì
+	Modal		: DialogBox		: ì „í™˜ ë¶ˆê°€
+	Modeless	: CreateDialog	: ì „í™˜ ê°€ëŠ¥
 		GetDlgItemText(hWnd, IDC_STR, str, 128);
 		SetDlgItemText(hWnd, IDC_STR, str);
 
@@ -46,11 +46,11 @@
 		EndDialog(hWnd, IDOK);
 			=>result of "DialogBox(g_Instance, MAKEINTRESOURCE(IDD_DIALOG1), hWnd, AboutDlgProc)"
 
-°øÅë ´ëÈ­ »óÀÚ
-	ÆÄÀÏ¿­±â ÆùÆ®¼±ÅÃ »ö»ó¼±ÅÃ ÀÎ¼â Ã£±â µî
+ê³µí†µ ëŒ€í™” ìƒì
+	íŒŒì¼ì—´ê¸° í°íŠ¸ì„ íƒ ìƒ‰ìƒì„ íƒ ì¸ì‡„ ì°¾ê¸° ë“±
 	BOOL GetOpenFileName( LPOPENFILENAME lpofn );
 
-	ÆÄÀÏ¿­±â
+	íŒŒì¼ì—´ê¸°
 		OPENFILENAME ofn;
 		TCHAR str[256];
 		TCHAR strFile[512] = TEXT("");
@@ -64,11 +64,11 @@
 		ofn.lpstrInitialDir = TEXT("c:\\");
 		if (GetOpenFileName(&ofn) != 0)
 		{
-			wsprintf(str, TEXT("%s ÆÄÀÏÀ» ¼±ÅÃÇß½À´Ï´Ù."), ofn.lpstrFile);
-			MessageBox(hWnd, str, TEXT("ÆÄÀÏ ¿­±â ¼º°ø"), MB_OK);
+			wsprintf(str, TEXT("%s íŒŒì¼ì„ ì„ íƒí–ˆìŠµë‹ˆë‹¤."), ofn.lpstrFile);
+			MessageBox(hWnd, str, TEXT("íŒŒì¼ ì—´ê¸° ì„±ê³µ"), MB_OK);
 		}
 
-	»ö»ó
+	ìƒ‰ìƒ
 		static COLORREF color = RGB(0, 0, 225);
 		static CHOOSECOLOR c;
 		static COLORREF colorTemp[16];
@@ -97,11 +97,11 @@
 
 
 /*
-10ÁÖÂ÷
+10ì£¼ì°¨
 +PostMessage(MessageQueue) / SendMessage(Direct)
 +LOWORD / HIWORD <>MakeLong(hi,lo)
 
-¿¡µğÆ®
+ì—ë””íŠ¸
 	hEdit_1 = CreateWindow(_T("edit"), 0, WS_CHILD | WS_VISIBLE | WS_BORDER | ES_AUTOHSCROLL, 10, 10, 256, 32, hWnd, (HMENU)ID_EDIT_1, g_Instance, 0);
 	WM_COMMAND:
 		LOWORD(wParam) is EDIT ID (HMENU's value)
@@ -110,7 +110,7 @@
 		case EN_CHANGE:
 			GetWindowText(hEdit_1, str_edit_1, 128);
 
-¸®½ºÆ®¹Ú½º
+ë¦¬ìŠ¤íŠ¸ë°•ìŠ¤
 	hList = CreateWindow(_T("listBox"), 0, WS_CHILD | WS_VISIBLE | WS_BORDER | LBS_NOTIFY,10, 10, 100, 200, hWnd, (HMENU)ID_LISTBOX, g_Instance, 0);
 		SendMessage(hList, LB_ADDSTRING, 0, (LPARAM)<string>);
 	WM_COMMAND:
@@ -124,12 +124,12 @@
 				//get string of index
 
 	LB/LBN/LBS(List Box Style,Notify)
-ÄŞº¸¹Ú½º
+ì½¤ë³´ë°•ìŠ¤
 	hCombo= CreateWindow(_T("ComboBox"), 0, WS_CHILD | WS_VISIBLE | WS_BORDER | CBS_DROPDOWN, 10, 10, 100, 200, hWnd, (HMENU)ID_COMBOBOX, g_Instance, 0);
 
-	//¸®½ºÆ®¹Ú½º + ¿¡µğÆ®¿Í °ÅÀÇ µ¿ÀÏ
+	//ë¦¬ìŠ¤íŠ¸ë°•ìŠ¤ + ì—ë””íŠ¸ì™€ ê±°ì˜ ë™ì¼
 
-½ºÅ©·Ñ¹Ù
+ìŠ¤í¬ë¡¤ë°”
 	SetScrollRange(hWNd,ID, --- ---- -- --- --
 	WM_<axis>SCROLL:
 		LOWORD(wParam) : clicked position
@@ -141,16 +141,16 @@
 	SetScrollRange(hRed, SB_CTL, 0, 255, 1);
 	SetScrollPos(hBlue, SB_CTL, 0, 1);
 
-½ºÅÂÆ½
+ìŠ¤íƒœí‹±
 
-9ÁÖÂ÷
-ºÎ¸ğÀ©µµ¿ì / ÀÚ½ÄÀ©µµ¿ì : ÀÚ½Ä¿¡¼­ ºÎ¸ğ¸¦ ¼³Á¤. unity¿Í À¯»ç
+9ì£¼ì°¨
+ë¶€ëª¨ìœˆë„ìš° / ìì‹ìœˆë„ìš° : ìì‹ì—ì„œ ë¶€ëª¨ë¥¼ ì„¤ì •. unityì™€ ìœ ì‚¬
 	WM_CREATE
-ÄÁÆ®·Ñ : ¸í·ÉÀ» ¹Ş¾Æ Ã³¸®ÇÏ´Â ÇÏ³ªÀÇ À©µµ¿ì & ÀÎÅÍÆäÀÌ½º
-	¹öÆ°/ÅØ½ºÆ®/½ºÅ©·Ñ¹Ù/¸®½ºÆ®¹Ú½º etc.
-	CreateWindowÀÇ menu(Control ID) => WM_COMMANDÀÇ LOWORD(wParam)
-		ÇØ´çWindowÀÇ Notification => WM_COMMANDÀÇ HIWORD(wParam)
-		ÇØ´çWindowÀÇ À©µµ¿ì ÇÚµé=> WM_COMMANDÀÇ lParam¿¡ µé¾î°¨.
+ì»¨íŠ¸ë¡¤ : ëª…ë ¹ì„ ë°›ì•„ ì²˜ë¦¬í•˜ëŠ” í•˜ë‚˜ì˜ ìœˆë„ìš° & ì¸í„°í˜ì´ìŠ¤
+	ë²„íŠ¼/í…ìŠ¤íŠ¸/ìŠ¤í¬ë¡¤ë°”/ë¦¬ìŠ¤íŠ¸ë°•ìŠ¤ etc.
+	CreateWindowì˜ menu(Control ID) => WM_COMMANDì˜ LOWORD(wParam)
+		í•´ë‹¹Windowì˜ Notification => WM_COMMANDì˜ HIWORD(wParam)
+		í•´ë‹¹Windowì˜ ìœˆë„ìš° í•¸ë“¤=> WM_COMMANDì˜ lParamì— ë“¤ì–´ê°.
 	Style
 		[B]utton[S]tyle_<Type>
 
@@ -187,32 +187,32 @@
 	//r[0] = CreateWindow(_T("Button"), names[0], WS_CHILD | WS_VISIBLE | WS_GROUP, 10 , 20 , 100, 30, hWnd, (HMENU)ID_R1, g_Instance, 0);
 	CheckRadioButton(hWnd, ID_R1, ID_R3, ID_R1);
 
-8ÁÖÂ÷
-*Áß°£°í»ç
+8ì£¼ì°¨
+*ì¤‘ê°„ê³ ì‚¬
 
-7ÁÖÂ÷
-*º¹½À
+7ì£¼ì°¨
+*ë³µìŠµ
 
 
-6ÁÖÂ÷
-//´ÙÀ½ÁÖ±îÁö ¼ö¾÷ÇÏ°í ½ÃÇè
-±×¸®±â¸ğµå : ROP : Rasterize operation (·¡½ºÅÍ¿¬»ê)
+6ì£¼ì°¨
+//ë‹¤ìŒì£¼ê¹Œì§€ ìˆ˜ì—…í•˜ê³  ì‹œí—˜
+ê·¸ë¦¬ê¸°ëª¨ë“œ : ROP : Rasterize operation (ë˜ìŠ¤í„°ì—°ì‚°)
 	SetROP2(hdc,R2_<TYPE>)
 
-¸ÊÇÎ¸ğµå : MapingMode - MM_<Type>
+ë§µí•‘ëª¨ë“œ : MapingMode - MM_<Type>
 	SetMapMode(hdc,fnMapMode)
 	GetMapMode(hdc)
 
-	³í¸®ÁÂÇ¥ : DCÇÚµéÀ» ÀÎ¼ö·Î »ç¿ë
-	¹°¸®ÁÂÇ¥ : Ãâ·ÂµÇ´Â ÁÂÇ¥. ÇÈ¼¿´ÜÀ§
+	ë…¼ë¦¬ì¢Œí‘œ : DCí•¸ë“¤ì„ ì¸ìˆ˜ë¡œ ì‚¬ìš©
+	ë¬¼ë¦¬ì¢Œí‘œ : ì¶œë ¥ë˜ëŠ” ì¢Œí‘œ. í”½ì…€ë‹¨ìœ„
 
-ºäÆ÷Æ® :
-	À©µµ¿ì : ³í¸®ÁÂÇ¥ »ç¿ë ¿µ¿ª
-	ºäÆ÷Æ® : ¹°¸®ÁÂÇ¥°¡ »ç¿ëµÇ´Â ¿µ¿ª
+ë·°í¬íŠ¸ :
+	ìœˆë„ìš° : ë…¼ë¦¬ì¢Œí‘œ ì‚¬ìš© ì˜ì—­
+	ë·°í¬íŠ¸ : ë¬¼ë¦¬ì¢Œí‘œê°€ ì‚¬ìš©ë˜ëŠ” ì˜ì—­
 
 	Set<Viewport/Window>OrgEx(hdc,x,y,*Point last)
 
-ºñÆ®¸Ê:
+ë¹„íŠ¸ë§µ:
 	Memdc = CreateCompatibleDC
 	myBit = LoadBitmap(g_Instance, MAKEINTRESOURCE(IDB_BITMAP2));
 	oldBit = (HBITMAP)SelectObject(MemDC, myBit);
@@ -225,39 +225,39 @@
 	DeleteObject(myBit);
 	DeleteDC(MemDC);
 
-	//µ¿ÀÏ¿µ¿ª º¹»ç, ÁÂÇ¥¸¸ ´Ù¸§  | 1ÇÈ¼¿´ç 1ÇÈ¼¿
-	BOOL BitBlt( HDC hdcDest, // º¹»ç ´ë»ó DC
-		int nXDest,			// º¹»ç ´ë»ó X
-		int nYDest,			// º¹»ç ´ë»ó Y
-		int nWidth,			// º¹»ç ´ë»ó Width
-		int nHeight,		// º¹»ç ´ë»ó Height
-		HDC hdcSrc,			// º¹»ç ¿øº» DC
-		int nXSrc,			// º¹»ç ¿øº» X
-		int nYSrc,			// º¹»ç ¿øº» Y
-		DWORD dwRop );		// ·¡½ºÅÍ ¿¬»ê ¹æ¹ı
+	//ë™ì¼ì˜ì—­ ë³µì‚¬, ì¢Œí‘œë§Œ ë‹¤ë¦„  | 1í”½ì…€ë‹¹ 1í”½ì…€
+	BOOL BitBlt( HDC hdcDest, // ë³µì‚¬ ëŒ€ìƒ DC
+		int nXDest,			// ë³µì‚¬ ëŒ€ìƒ X
+		int nYDest,			// ë³µì‚¬ ëŒ€ìƒ Y
+		int nWidth,			// ë³µì‚¬ ëŒ€ìƒ Width
+		int nHeight,		// ë³µì‚¬ ëŒ€ìƒ Height
+		HDC hdcSrc,			// ë³µì‚¬ ì›ë³¸ DC
+		int nXSrc,			// ë³µì‚¬ ì›ë³¸ X
+		int nYSrc,			// ë³µì‚¬ ì›ë³¸ Y
+		DWORD dwRop );		// ë˜ìŠ¤í„° ì—°ì‚° ë°©ë²•
 
-	//¿µ¿ª,ÁÂÇ¥ µÑ´Ù ´Ù¸£°Ô °¡Á®¿Ã ¼ö ÀÖÀ½ | 1ÇÈ¼¿´ç NÇÈ¼¿
-	BOOL StretchBlt( HDC hdcDest, // º¹»ç ´ë»ó DC
-		int nXOriginDest,	// º¹»ç ´ë»ó X
-		int nYOriginDest,	// º¹»ç ´ë»ó Y
-		int nWidthDest,		// º¹»ç ´ë»ó Width
-		int nHeightDest,	// º¹»ç ´ë»ó Height
-		HDC hdcSrc,			// º¹»ç ¿øº» DC
-		int nXOriginSrc,	// º¹»ç ¿øº» X
-		int nYOriginSrc,	// º¹»ç ¿øº» Y
-		int nWidthSrc,		// º¹»ç ¿øº» Width
-		int nHeightSrc,		// º¹»ç ¿øº» Height
-		DWORD dwRop );		// ·¡½ºÅÍ ¿¬»ê ¹æ¹ı
+	//ì˜ì—­,ì¢Œí‘œ ë‘˜ë‹¤ ë‹¤ë¥´ê²Œ ê°€ì ¸ì˜¬ ìˆ˜ ìˆìŒ | 1í”½ì…€ë‹¹ Ní”½ì…€
+	BOOL StretchBlt( HDC hdcDest, // ë³µì‚¬ ëŒ€ìƒ DC
+		int nXOriginDest,	// ë³µì‚¬ ëŒ€ìƒ X
+		int nYOriginDest,	// ë³µì‚¬ ëŒ€ìƒ Y
+		int nWidthDest,		// ë³µì‚¬ ëŒ€ìƒ Width
+		int nHeightDest,	// ë³µì‚¬ ëŒ€ìƒ Height
+		HDC hdcSrc,			// ë³µì‚¬ ì›ë³¸ DC
+		int nXOriginSrc,	// ë³µì‚¬ ì›ë³¸ X
+		int nYOriginSrc,	// ë³µì‚¬ ì›ë³¸ Y
+		int nWidthSrc,		// ë³µì‚¬ ì›ë³¸ Width
+		int nHeightSrc,		// ë³µì‚¬ ì›ë³¸ Height
+		DWORD dwRop );		// ë˜ìŠ¤í„° ì—°ì‚° ë°©ë²•
 
 
 FONT :
-	»ı¼º
+	ìƒì„±
 		HFONT CreateFont(
 			int nHeight,
 			int nWidth,
-			int nEscapement				<ÀüÃ¼¹®ÀÚ ±â¿ï±â>,
-			int nOrientation			<°³º° ¹®ÀÚ ±â¿ï±â>,
-			int fnWeight µÎ²²,
+			int nEscapement				<ì „ì²´ë¬¸ì ê¸°ìš¸ê¸°>,
+			int nOrientation			<ê°œë³„ ë¬¸ì ê¸°ìš¸ê¸°>,
+			int fnWeight ë‘ê»˜,
 			DWORD fdwItalic,
 			DWORD fdwUnderline,
 			DWORD fdwStrikeOut,
@@ -266,17 +266,17 @@ FONT :
 			DWORD fdwClipPrecision,
 			DWORD fdwQuality,
 			DWORD fdwPitchAndFamily,
-			LPCTSTR lpszFace  );		<±Û²ÃÀÌ¸§>
+			LPCTSTR lpszFace  );		<ê¸€ê¼´ì´ë¦„>
 
-		HFONT CreateFontIndirect( CONST LOGFONT *lplf); //±¸Á¶Ã¼¸¦ »ç¿ëÇÑ °£Á¢»ı¼º.
-	»ö»ó
+		HFONT CreateFontIndirect( CONST LOGFONT *lplf); //êµ¬ì¡°ì²´ë¥¼ ì‚¬ìš©í•œ ê°„ì ‘ìƒì„±.
+	ìƒ‰ìƒ
 		COLORREF SetTextColor( HDC hdc, COLORREF crColor );
 		COLORREF SetBkColor( HDC hdc, COLORREF crColor );
 		int SetBkMode( HDC hdc, int iBkMode );
 */
 
-/*							5ÁÖÂ÷
-	*°úÁ¦¿¡ ´ëÇØ ¹è¿î°ÍÀ» »ç¿ëÇÏÁö ¾Æ´ÏÇÏ¸é °¨Á¡ ¿äÀÎÀÌ µÉ ¼ö ÀÖÀ½. - A+´Â ³¯¶ó°¬±º...
+/*							5ì£¼ì°¨
+	*ê³¼ì œì— ëŒ€í•´ ë°°ìš´ê²ƒì„ ì‚¬ìš©í•˜ì§€ ì•„ë‹ˆí•˜ë©´ ê°ì  ìš”ì¸ì´ ë  ìˆ˜ ìˆìŒ. - A+ëŠ” ë‚ ë¼ê°”êµ°...
 
 	GetClientRect(hWnd,Rect)
 
@@ -299,11 +299,11 @@ Resources :
 		WM_COMMAND:
 			ID = LOWORD(wParam)
 			ID_FILE_MENU...
-			HIWORD : 	¸Ş´º : 0	 / ¿¢¼¿·¯·¹ÀÌÅÍ : 1
+			HIWORD : 	ë©”ë‰´ : 0	 / ì—‘ì…€ëŸ¬ë ˆì´í„° : 1
 
 	Cursor :
 		wc.hIcon
-		wc.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_ICON1));					// À©µµ¿ì°¡ ÃÖ¼ÒÈ­ µÉ¶§ º¸¿©ÁÙ ¾ÆÀÌÄÜ
+		wc.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_ICON1));					// ìœˆë„ìš°ê°€ ìµœì†Œí™” ë ë•Œ ë³´ì—¬ì¤„ ì•„ì´ì½˜
 		wc.hCursor = LoadCursor(hInstance, MAKEINTRESOURCE(<IDC_Cursor_ID>));
 
 	Accelerator :
@@ -322,16 +322,16 @@ Resources :
 				gInstance : global, proc contains not instance.
 
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-6ÁÖÂ÷¿¡ ÁøÇàµÊ
+6ì£¼ì°¨ì— ì§„í–‰ë¨
 
 GDI/StockObject :
 	HBRUSH / HPEN
 
 	BRUSH / GetStockObject :
 		auto handle = GetStockObject(<COLOR>_<TYPE>) as HandleType
-			ÀÏºÎ Á¤ÀÇµÈ ´Ü»ö¸¸
+			ì¼ë¶€ ì •ì˜ëœ ë‹¨ìƒ‰ë§Œ
 		auto handle = CreateSolidBrush(COLORREF) / CreateHatchBrush(<HatchStyle_Name>,COLORREF)
-			»ç¿ëÀÚ ÁöÁ¤ ´Ü»ö/ ÀÏºÎ Á¤ÀÇµÈ ¹«´Ì±îÁö
+			ì‚¬ìš©ì ì§€ì • ë‹¨ìƒ‰/ ì¼ë¶€ ì •ì˜ëœ ë¬´ëŠ¬ê¹Œì§€
 
 	PEN / CreatePen :
 		auto handle = CreatePen(<PenStyle_Name>,size,COLORREF)
@@ -339,7 +339,7 @@ GDI/StockObject :
 
 	SelectObject :
 		Return = LastSelectedObject, param = hdc, target
-		//Á¾·ùº°·Î ÇÏ³ª¾¿¸¸ ÇÏ¸éµÊ. ºê·¯½Ã/Ææ µ¿½Ã »ç¿ë °¡´É
+		//ì¢…ë¥˜ë³„ë¡œ í•˜ë‚˜ì”©ë§Œ í•˜ë©´ë¨. ë¸ŒëŸ¬ì‹œ/íœ ë™ì‹œ ì‚¬ìš© ê°€ëŠ¥
 
 	//IN WndProc
 		instance = (HBRUSH)GetStockObject(GRAY_BRUSH);
@@ -351,7 +351,7 @@ GDI/StockObject :
 		DeleteObject(instance)
 */
 
-/*							4ÁÖÂ÷
+/*							4ì£¼ì°¨
 
 MessageBox :
 	MessageBox(hWnd, _T(""), _T(""), MB_OK);
@@ -389,7 +389,7 @@ SendMessage :
 
 */
 
-/*							3ÁÖÂ÷
+/*							3ì£¼ì°¨
 
 Text :
 	SetTextAlign(hdc,TA_<TYPE>);

@@ -144,6 +144,7 @@
     <ClInclude Include="Object.h" />
     <ClInclude Include="sharedQueue.h" />
     <ClInclude Include="singleton.h" />
+    <ClInclude Include="Timer.h" />
     <ClInclude Include="vector.h" />
   </ItemGroup>
   <ItemGroup>

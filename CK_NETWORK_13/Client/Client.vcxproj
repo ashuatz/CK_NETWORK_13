@@ -148,6 +148,7 @@
     <ClInclude Include="vector.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="apiTemp.cpp" />
     <ClCompile Include="clientMain.cpp" />
     <ClCompile Include="vector.cpp" />
   </ItemGroup>

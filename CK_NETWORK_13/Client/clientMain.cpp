@@ -104,7 +104,6 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR    lpCm
 }
 
 //test : temp variable
-float maxGravity;
 
 vector2 PlayerPosition;
 vector2 PlayerScale;
@@ -122,6 +121,7 @@ vector2 bulletSize;
 vector2 defaultWorldOffset;
 vector2 worldOffset;
 constexpr float Gravity = -9;
+constexpr float maxGravity = -100;
 
 constexpr float targetRenderTime = 0.016;
 float renderTime = 0;
@@ -133,13 +133,14 @@ void FixedUpdate()
 
 	if (isBulletAlive)
 	{
-		bulletPosition += (bulletmoveDirection * bulletPower + vector2(0, Gravity * bulletGravityTime < maxGravity ? Gravity * bulletGravityTime : maxGravity)) * dt;
+		bulletPosition += (bulletmoveDirection * bulletPower + vector2(0, abs(Gravity * bulletGravityTime) < abs(maxGravity) ? Gravity * bulletGravityTime : maxGravity)) * dt;
 
 		bulletGravityTime += dt;
 
 		//smoothDamp
+
 		//camera follow bulletPosition
-		worldOffset += (-bulletPosition - worldOffset) * 0.005f;
+		worldOffset += (-bulletPosition - worldOffset) * 0.0002f;
 
 		//x = velocity * cos(еш) * t
 		//y = velocity * sin(еш) * t  - 1 / 2g * t ^ 2

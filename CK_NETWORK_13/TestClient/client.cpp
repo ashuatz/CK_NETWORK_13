@@ -2,8 +2,22 @@
 #include <string>
 #include <thread>
 #include "network.h"
+#include "..\Client\vector.h"
 
 using namespace std;
+
+enum opcode
+{
+	None,
+	Alpha,
+	Beta
+};
+
+struct Data
+{
+	opcode opcode;
+	vector3 position;
+};
 
 //testCode for Network module
 int main()
@@ -14,6 +28,10 @@ int main()
 		.TryConnect())
 		return 0;
 
+	Data data{ Alpha,vector3(1,2,3) };
+	char* pData = (char*)&data;
+
+
 	//Output thread 
 	std::thread show(std::bind([=]()
 	{
@@ -21,11 +39,22 @@ int main()
 		{
 			auto message = NetworkModule::GetInstance().SyncDequeueMessage();
 
-			if (!message.empty())
-				cout << message << endl;
+			if (Data* temp = reinterpret_cast<Data*>(const_cast<char*>(message.c_str())))
+			{
+				cout << "message is Data class :: ";
+				cout << "opCode is " << temp->opcode << ", position.x is " << temp->position.x << endl;
+			}
+			else
+			{
+				if (!message.empty())
+					cout << message << endl;
+			}
+			
 		}
 	}));
 
+	NetworkModule::GetInstance().Send(string(pData,sizeof(data)));
+	
 	//Input thread
 	while (true)
 	{

@@ -84,7 +84,9 @@ DWORD WINAPI ProcessClient(LPVOID arg)
 		buf[retVal] = '\0';
 		printf("[TCP/%s:%d] %s\n", inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port), buf);
 
-		int len = strlen(buf);
+		//not string.
+		//int len = strlen(buf);
+		int len = retVal;
 
 		for (auto it : connections)
 		{

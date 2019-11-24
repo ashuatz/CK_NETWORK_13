@@ -141,8 +141,8 @@ public:
 				break;
 			}
 
-			buf[result] = '\0';
-			auto data = std::string(buf).substr(0, result);
+			//buf[result] = '\0';
+			auto data = std::string(buf, len);
 			messageQueue.push(data);
 		}
 	}

@@ -1,5 +1,5 @@
 #pragma once
-#pragma once
+#include <cmath>
 
 struct Matrix2x2
 {
@@ -181,7 +181,7 @@ public:
 };
 
 
-Matrix2x2 &MatrixIdentity(Matrix2x2 &matrix)
+inline Matrix2x2 &MatrixIdentity(Matrix2x2 &matrix)
 {
 	matrix.m[0][1] = matrix.m[1][0] = 0.0f;
 
@@ -190,7 +190,7 @@ Matrix2x2 &MatrixIdentity(Matrix2x2 &matrix)
 	return matrix;
 }
 
-Matrix3x3 &MatrixIdentity(Matrix3x3 &matrix)
+inline Matrix3x3 &MatrixIdentity(Matrix3x3 &matrix)
 {
 	matrix.m[0][1] = matrix.m[0][2] =
 		matrix.m[1][0] = matrix.m[1][2] =
@@ -201,7 +201,7 @@ Matrix3x3 &MatrixIdentity(Matrix3x3 &matrix)
 	return matrix;
 }
 
-Matrix3x3 &MatrixTranslation(Matrix3x3 &matrix, const float &x, const float &y)
+inline Matrix3x3 &MatrixTranslation(Matrix3x3 &matrix, const float &x, const float &y)
 {
 	MatrixIdentity(matrix);
 
@@ -212,7 +212,7 @@ Matrix3x3 &MatrixTranslation(Matrix3x3 &matrix, const float &x, const float &y)
 }
 
 
-Matrix3x3 &MatrixScale(Matrix3x3 &matrix, const float &x, const float &y)
+inline Matrix3x3 &MatrixScale(Matrix3x3 &matrix, const float &x, const float &y)
 {
 	MatrixIdentity(matrix);
 
@@ -222,7 +222,7 @@ Matrix3x3 &MatrixScale(Matrix3x3 &matrix, const float &x, const float &y)
 	return matrix;
 }
 
-Matrix3x3 &MatrixRotationDir(Matrix3x3 &matrix, const float &dir)
+inline Matrix3x3 &MatrixRotationDir(Matrix3x3 &matrix, const float &dir)
 {
 	MatrixIdentity(matrix);
 

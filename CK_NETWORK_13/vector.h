@@ -1,6 +1,5 @@
 #pragma once
 #include "Matrix.h"
-#include <cmath>
 
 class vector2;
 class vector2Int;
@@ -17,7 +16,7 @@ struct vector2
 	vector2(const vector2Int &other);
 	vector2(const vector3 &other);
 	vector2(const vector3Int &other);
-	~vector2() {}
+	~vector2() = default;
 
 	operator float *() { return &x; }
 	operator const float *() const { return &x; }
@@ -134,7 +133,7 @@ struct vector2Int
 	vector2Int(const vector2 &other);
 	vector2Int(const vector3 &other);
 	vector2Int(const vector3Int &other);
-	~vector2Int() {}
+	~vector2Int() = default;
 
 	vector2Int &operator+=(const vector2Int &rhs)
 	{
@@ -215,7 +214,7 @@ struct vector3
 	vector3(const vector2 &other);
 	vector3(const vector2Int &other);
 	vector3(const vector3Int &other);
-	~vector3() {}
+	~vector3() = default;
 
 	operator float *() { return &x; }
 	operator const float *() const { return &x; }
@@ -352,7 +351,7 @@ struct vector3Int
 	vector3Int(const vector2 &other);
 	vector3Int(const vector2Int &other);
 	vector3Int(const vector3 &other);
-	~vector3Int() {}
+	~vector3Int() = default;
 
 	vector3Int &operator+=(const vector3Int &rhs)
 	{

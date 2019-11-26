@@ -20,13 +20,13 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="network.h">
+    <ClInclude Include="..\network.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="sharedQueue.h">
+    <ClInclude Include="..\sharedQueue.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="singleton.h">
+    <ClInclude Include="..\singleton.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
   </ItemGroup>

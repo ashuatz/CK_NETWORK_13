@@ -1,4 +1,6 @@
 #pragma once
+#include <string>
+
 #include "network.h"
 #include "vector.h"
 
@@ -123,46 +125,72 @@ struct GameEndMessage
 	
 };
 
+struct namae
+{
+	//move target
+	int pid;
+
+	//next pid
+	const char* tt;
+
+};
+
 struct Packet
 {
-	OpCodes code;
+	Packet() : opcode(OpCodes::None), error_code(ErrorCodes::None), request{ 0, }, response{ 0, }	{	}
+
+	Packet(const Packet& packet) : request{ 0, }, response{ 0, }
+	{
+		memcpy_s(this, sizeof(*this), &packet, sizeof(packet));
+	}
+
+	OpCodes opcode;
 
 	ErrorCodes error_code;
 
+	union 
+	{
+		//Request
+		char request_data[NetworkModule::_PACKET_SIZE_ / 2];
+
+		PIDMessage pid_message;
+
+		FireMessage fire_message;
+		HitMessage hit_message;
+		MoveMessage move_message;
+
+		TurnOverMessage turn_over_message;
+		GameEndMessage game_end_message;
+
+	} request;
+
 	union
 	{
-		union
-		{
-			//Request
-			PIDMessage pid_message;
+		//Response
+		char request_data[NetworkModule::_PACKET_SIZE_ / 2];
 
-			FireMessage fire_message;
-			HitMessage hit_message;
+		PIDMessage pid_message;
 
-			TurnOverMessage turn_over_message;
-			GameEndMessage game_end_message;
+		FireMessage fire_message;
+		HitMessage hit_message;
+		MoveMessage move_message;
 
-			MoveMessage move_message;
+		TurnOverMessage turn_over_message;
+		GameEndMessage game_end_message;
+	} response;
 
-			char data[NetworkModule::_PACKET_SIZE_ / 2];
-		};
+	const std::string ToString()
+	{
+		return std::string((char*)this, sizeof(*this));
+	}
 
-		union
-		{
-			//Response
-			PIDMessage pid_message;
+	static const Packet ToPacket(std::string message)
+	{
+		Packet packet;
 
-			FireMessage fire_message;
-			HitMessage hit_message;
+		auto temp = reinterpret_cast<Packet*>(const_cast<char*>(message.c_str()));
+		memcpy_s(&packet, sizeof(packet), temp, message.size());
 
-			TurnOverMessage turn_over_message;
-			GameEndMessage game_end_message;
-
-			MoveMessage move_message;
-
-			char data[NetworkModule::_PACKET_SIZE_ / 2];
-		};
-
-		char data[NetworkModule::_PACKET_SIZE_];
-	};
+		return packet;
+	}
 };

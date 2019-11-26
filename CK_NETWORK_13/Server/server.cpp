@@ -6,6 +6,11 @@
 #include <algorithm>
 #include <mutex>
 
+#include <string>
+
+#include "singleton.h"
+#include "packet.h"
+
 #pragma warning(disable:4996)
 #define PORT 3317
 #define BUFSIZE 512
@@ -55,8 +60,36 @@ int CustomRemove(std::vector<T> target, const T& rhs)
 	return (lastSize - std::distance(target.begin(), end)) / sizeof(T);
 }
 
+void PacketSetting(Packet* packet)
+{
+
+}
+
+
 std::vector<Connection> connections;
 std::mutex connectionsLock;
+
+
+void Send(Packet packet, SOCKET socket)
+{
+	auto message = packet.ToString();
+	int len = message.size();
+
+	int retVal = send(socket, (char*)&len, sizeof(int), 0);
+	if (retVal == SOCKET_ERROR)
+	{
+		err_display("send()");
+		return;
+	}
+
+	retVal = send(socket, message.c_str(), len, 0);
+	if (retVal == SOCKET_ERROR)
+	{
+		err_display("send()");
+		return;
+	}
+}
+
 
 DWORD WINAPI ProcessClient(LPVOID arg)
 {
@@ -88,24 +121,48 @@ DWORD WINAPI ProcessClient(LPVOID arg)
 		//int len = strlen(buf);
 		int len = retVal;
 
+		//Packet access
+		Packet received = Packet::ToPacket(std::string(buf, retVal));
+		
+		if (received.opcode == OpCodes::None)
+		{
+			received.error_code = ErrorCodes::kBadRequest;
+
+			Send(received, client_sock);
+			continue;
+		}
+
+		switch (received.opcode)
+		{
+			case OpCodes::kRequestPID:
+			{
+
+				break;
+			}
+
+			case OpCodes::kRequestFirst:
+			{
+				break;
+			}
+
+			case OpCodes::kRequestHit:
+			{
+				break;
+			}
+
+			default:
+				memcpy_s(received.response.request_data, 128, received.request.request_data, 128);
+				break;
+		}
+
+		received.error_code = ErrorCodes::kOK;
+
+		//
 		for (auto it : connections)
 		{
-			retVal = send(it.sock, (char*)&len, sizeof(int), 0);
-			if (retVal == SOCKET_ERROR)
-			{
-				err_display("send()");
-				break;
-			}
-
-			retVal = send(it.sock, buf, len, 0);
-			if (retVal == SOCKET_ERROR)
-			{
-				err_display("send()");
-				break;
-			}
+			Send(received, it.sock);
 		}
 	}
-
 
 	//remove target client
 	connectionsLock.lock();

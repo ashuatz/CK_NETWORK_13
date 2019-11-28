@@ -92,6 +92,7 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -144,16 +145,19 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\vector.cpp" />
-    <ClCompile Include="apiTemp.cpp" />
     <ClCompile Include="clientMain.cpp" />
+    <ClCompile Include="sfdafx.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\clientMain.h" />
+    <ClInclude Include="..\math.h" />
     <ClInclude Include="..\matrix.h" />
     <ClInclude Include="..\network.h" />
     <ClInclude Include="..\Object.h" />
     <ClInclude Include="..\Packet.h" />
     <ClInclude Include="..\sharedQueue.h" />
     <ClInclude Include="..\singleton.h" />
+    <ClInclude Include="..\stdafx.h" />
     <ClInclude Include="..\Timer.h" />
     <ClInclude Include="..\vector.h" />
   </ItemGroup>

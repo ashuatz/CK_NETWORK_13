@@ -16,7 +16,21 @@
 #define BUFSIZE 512
 
 
-void err_quit(const char *msg) {
+//전방선언
+void err_quit(const char *msg);
+
+void err_display(const char *msg);
+
+template <typename T>
+int CustomRemove(std::vector<T> target, const T& rhs);
+
+void PacketSetting(Packet* packet);
+
+void Send(Packet packet, SOCKET socket);
+DWORD WINAPI ProcessClient(LPVOID arg);
+
+void err_quit(const char *msg) 
+{
 	LPVOID lpMsgBuf;
 	FormatMessage(
 		FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM, NULL,
@@ -28,7 +42,8 @@ void err_quit(const char *msg) {
 	exit(1);
 }
 
-void err_display(const char *msg) {
+void err_display(const char *msg) 
+{
 	LPVOID lpMsgBuf;
 	FormatMessage(
 		FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,
@@ -65,10 +80,8 @@ void PacketSetting(Packet* packet)
 
 }
 
-
 std::vector<Connection> connections;
 std::mutex connectionsLock;
-
 
 void Send(Packet packet, SOCKET socket)
 {
@@ -89,7 +102,6 @@ void Send(Packet packet, SOCKET socket)
 		return;
 	}
 }
-
 
 DWORD WINAPI ProcessClient(LPVOID arg)
 {
@@ -151,16 +163,16 @@ DWORD WINAPI ProcessClient(LPVOID arg)
 			}
 
 			default:
+				//default is RPC
+
 				memcpy_s(received.response.request_data, 128, received.request.request_data, 128);
+				received.error_code = ErrorCodes::kOK;
+				for (auto it : connections)
+				{
+					Send(received, it.sock);
+				}
+
 				break;
-		}
-
-		received.error_code = ErrorCodes::kOK;
-
-		//
-		for (auto it : connections)
-		{
-			Send(received, it.sock);
 		}
 	}
 
@@ -179,6 +191,8 @@ DWORD WINAPI ProcessClient(LPVOID arg)
 	printf("[TCP 서버] 클라이언트 종료: IP 주소=%s, 포트 번호=%d\n", inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port));
 	return 0;
 }
+
+
 
 
 int main()
@@ -250,3 +264,5 @@ int main()
 	WSACleanup();
 	return 0;
 }
+
+

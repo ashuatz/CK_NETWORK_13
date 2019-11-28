@@ -1,7 +1,11 @@
+#include "stdafx.h"
+
 #include "network.h"
 #include "vector.h"
 #include "matrix.h"
 #include "Timer.h"
+#include "object.h"
+#include "packet.h"
 
 #include <Windows.h>
 #include <sstream>
@@ -10,24 +14,23 @@
 
 #include <algorithm>
 
-HWND hRootWnd;
-
-TCHAR szWndAppName[] = TEXT("Client");
-HINSTANCE g_Instance;
-
+int PID;
+bool g_bIsActive;
 int g_nClientWidth = 640;
 int g_nClientHeight = 480;
 
-template<typename T>
-T clamp(const T& min, const T& max, const T& value)
-{
-	return value < min ? min : (value > max ? max : value);
-}
+// 전역 변수:
+HWND hRootWnd;
+TCHAR szWndAppName[] = TEXT("Client");
+HINSTANCE g_Instance;
 
+//유틸
+#define RectToParam(rect) rect.left,rect.top,rect.right,rect.bottom
+#define Vector2ToParam(vector) vector.x,vector.y
+
+//정방향 선언
 void FixedUpdate();
-
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
-
 
 int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR    lpCmdLine, int       nCmdShow)
 {
@@ -68,26 +71,11 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR    lpCm
 	ShowWindow(hRootWnd, nCmdShow);
 
 	// 4. 메시지 루프 
+
 	MSG Message;
-
-	//while (GetMessage(&Message, 0, 0, 0))
-	//{
-	//	TranslateMessage(&Message);
-	//	DispatchMessage(&Message);
-	//}
-
 	HDC hdc = GetDC(hRootWnd);
 	while (true)
 	{
-		//io
-		if (PeekMessage(&Message, 0, 0, 0, PM_REMOVE))
-		{
-			if (Message.message == WM_QUIT) break;
-
-			TranslateMessage(&Message);       //WM_KEYDOWN이고 키가 문자 키일 때 WM_CHAR 발생
-			DispatchMessage(&Message);        //콜백 프로시저가 수행할 수 있게 디스패치 시킴
-		}
-
 		//System
 
 		//physics
@@ -96,6 +84,18 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR    lpCm
 		//time
 		Time::GetInstance().CheckCounter();
 
+		//io
+		if (PeekMessage(&Message, 0, 0, 0, PM_REMOVE))
+		{
+			if (Message.message == WM_QUIT) break;
+
+			TranslateMessage(&Message);       //WM_KEYDOWN이고 키가 문자 키일 때 WM_CHAR 발생
+			DispatchMessage(&Message);        //콜백 프로시저가 수행할 수 있게 디스패치 시킴
+		}
+		else
+		{
+			WaitMessage();
+		}
 	}
 
 	ReleaseDC(hRootWnd, hdc);
@@ -105,23 +105,14 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR    lpCm
 
 //test : temp variable
 
-vector2 PlayerPosition;
-vector2 PlayerScale;
-vector2 PlayerSize;
+Matrix3x3 mat;
 
-bool isBulletAlive;
-float bulletGravityTime;
-float bulletPower;
-vector2 bulletmoveDirection;
+Player me;
+Player other;
 
-vector2 bulletPosition;
-vector2 bulletScale;
-vector2 bulletSize;
+Bullet bullet;
 
-vector2 defaultWorldOffset;
-vector2 worldOffset;
-constexpr float Gravity = -9;
-constexpr float maxGravity = -100;
+World world;
 
 constexpr float targetRenderTime = 0.016;
 float renderTime = 0;
@@ -131,35 +122,56 @@ void FixedUpdate()
 	auto dt = Time::GetInstance().GetDeltaTime() * 0.01; // 0.001f
 	renderTime += dt;
 
-	if (isBulletAlive)
+	if (bullet.isAlive)
 	{
-		bulletPosition += (bulletmoveDirection * bulletPower + vector2(0, abs(Gravity * bulletGravityTime) < abs(maxGravity) ? Gravity * bulletGravityTime : maxGravity)) * dt;
+		bullet.position += (bullet.moveDirection * bullet.power + vector2(0, world.GetMaxGravity(bullet.gravityTime))) * dt;
 
-		bulletGravityTime += dt;
+		bullet.gravityTime += dt;
 
 		//smoothDamp
 
 		//camera follow bulletPosition
-		worldOffset += (-bulletPosition - worldOffset) * 0.0002f;
+		world.worldOffset += (-bullet.position - world.worldOffset) * 0.02f;
 
 		//x = velocity * cos(θ) * t
 		//y = velocity * sin(θ) * t  - 1 / 2g * t ^ 2
+
+		//collision
+
+		if (bullet.position.y < 0)
+		{
+			//release bullet
+			bullet.isAlive = false;
+			
+			//auto packet = Packet();
+
+			//packet.opcode = OpCodes::kTurnOver;
+			//packet.request.turn_over_message = TurnOverMessage
+			//{
+			//	//pid
+			//	1
+			//};
+
+			//NetworkModule::GetInstance().Send(packet.ToString());
+		}
 	}
 	else
 	{
-		worldOffset = defaultWorldOffset;
+		world.worldOffset = world.defaultWorldOffset;
 	}
 
 	if (renderTime > targetRenderTime)
 	{
 		renderTime -= targetRenderTime;
-		InvalidateRect(hRootWnd, 0, 1);
+		InvalidateRect(hRootWnd, 0, 0);
 
 		//debug : logging deltaTime , frameRate
 		auto titleName = (std::stringstream() << std::setw(4) << std::setfill(_T(' ')) << Time::GetInstance().GetFrame()).str()
 			.append(_T(" Frame    "))
 			.append((std::stringstream() << std::setw(8) << std::setfill(_T(' ')) << std::setprecision(5) << (Time::GetInstance().GetDeltaTime())).str())
-			.append(_T(" ms"));
+			.append(_T(" ms"))
+			.append(_T(" max      "))
+			.append((std::stringstream() << std::setw(8)<< std::setfill(_T(' '))<<std::setprecision(5)<<(Time::GetInstance().GetMaxDeltaTime())).str());
 
 		SetWindowText(hRootWnd, titleName.c_str());
 	}
@@ -174,6 +186,7 @@ const RECT GetRect(const vector2& position, const vector2& size)
 	LONG    right;
 	LONG    bottom;
  */
+
 	return RECT{
 		static_cast<LONG>(position.x - (size.x / 2)),
 		static_cast<LONG>(position.y - (size.y / 2)),
@@ -184,12 +197,10 @@ const RECT GetRect(const vector2& position, const vector2& size)
 const vector2 GetRenderPosition(const vector2& position)
 {
 	return vector2(
-		g_nClientWidth * 0.5f + position.x + worldOffset.x,
-		g_nClientHeight * 0.5f - (position.y + worldOffset.y));
+		g_nClientWidth * 0.5f + position.x + world.worldOffset.x,
+		g_nClientHeight * 0.5f - (position.y + world.worldOffset.y));
 }
 
-#define RectToParam(rect) rect.left,rect.top,rect.right,rect.bottom
-#define Vector2ToParam(vector) vector.x,vector.y
 
 // 0.1. 윈도우 프로시저 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
@@ -200,20 +211,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	{
 		case WM_CREATE:
 		{
-			PlayerPosition = vector2(0, 0);
-			PlayerScale = vector2(1, 1);
-			PlayerSize = vector2(20, 20);
+			me.PlayerPosition = vector2(0, 0);
+			me.PlayerScale = vector2(1, 1);
+			me.PlayerSize = vector2(20, 20);
 
-			bulletPower = 20;
-			bulletmoveDirection = vector2(1, 1);
-
-			bulletPosition = PlayerPosition;
-			bulletScale = vector2(1, 1);
-			bulletSize = vector2(5, 5);
-			
-			defaultWorldOffset = vector2(0, 0);
-
-			isBulletAlive = false;
+			bullet.Init(me.PlayerPosition, vector2(1, 1));
 
 			return 0;
 		}
@@ -228,11 +230,30 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 			switch (wParam) 
 			{
-				case VK_DOWN: defaultWorldOffset += vector2(0, -2); break;
-				case VK_UP:defaultWorldOffset += vector2(0, 2); break;
+				case VK_SPACE:
+				{
+					//test PID request function
+					Packet packet;
+					packet.opcode = OpCodes::kRequestPID;
+					NetworkModule::GetInstance().Send(packet.ToString());
 
-				case VK_LEFT:defaultWorldOffset += vector2(2, 0); break;
-				case VK_RIGHT:defaultWorldOffset += vector2(-2, 0); break;
+					const auto message = NetworkModule::GetInstance().SyncDequeueMessage();
+					Packet received = Packet::ToPacket(message);
+					if (received.error_code != ErrorCodes::kOK)
+					{
+						//error
+						break;
+					}
+
+					PID = received.response.pid_message.pid;
+
+					break;
+				}
+				case VK_DOWN: world.defaultWorldOffset += vector2(0, -2); break;
+				case VK_UP:world.defaultWorldOffset += vector2(0, 2); break;
+
+				case VK_LEFT:world.defaultWorldOffset += vector2(2, 0); break;
+				case VK_RIGHT:world.defaultWorldOffset += vector2(-2, 0); break;
 
 				default:
 					break;
@@ -248,8 +269,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		case WM_LBUTTONDOWN:
 		{
 			//test : bullet fire code
-			isBulletAlive = true;
-
+			bullet.isAlive = true;
 
 			return 0;
 		}
@@ -257,39 +277,54 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		case WM_RBUTTONDOWN:
 		{
 			//test : bullet initialize Code
-
-			isBulletAlive = false;
-			bulletGravityTime = 0;
-
-			bulletPosition = PlayerPosition;
-			bulletScale = vector2(1,1);
-			bulletSize = vector2(5,5);
-
+			bullet.Init(me.PlayerPosition, vector2(1, 1));
 			return 0;
 		}
 
 		case WM_PAINT:
 		{
+			static HDC memDC, hdc;
+			static HBITMAP memoryMap, screenMap;
+			static RECT bufferRT;
+
 			PAINTSTRUCT ps;
-			HDC hdc = BeginPaint(hWnd, &ps);
+			hdc = BeginPaint(hWnd, &ps);
+
+			GetClientRect(hWnd, &bufferRT);
+			memDC = CreateCompatibleDC(hdc);
+			memoryMap = CreateCompatibleBitmap(hdc, bufferRT.right, bufferRT.bottom);
+			screenMap = (HBITMAP)SelectObject(memDC, memoryMap);
+
+			PatBlt(memDC, 0, 0, bufferRT.right, bufferRT.bottom, WHITENESS);
+
+
+			//HDC hdc = hMemoryDC;
 
 			vector2 vector = vector2(1, 1);
 
 			//test : render
 
 			//horizon
-			MoveToEx(hdc, Vector2ToParam(GetRenderPosition(vector2(-INT16_MAX, 0))), 0);
-			LineTo(hdc, Vector2ToParam(GetRenderPosition(vector2(INT16_MAX, 0))));
+			MoveToEx(memDC, Vector2ToParam(GetRenderPosition(vector2(-INT16_MAX, 0))), 0);
+			LineTo(memDC, Vector2ToParam(GetRenderPosition(vector2(INT16_MAX, 0))));
 
 			//player
-			Rectangle(hdc, RectToParam(GetRect(GetRenderPosition(PlayerPosition), PlayerSize)));
+			Rectangle(memDC, RectToParam(GetRect(GetRenderPosition(me.PlayerPosition), me.PlayerSize)));
+			Rectangle(memDC, RectToParam(GetRect(GetRenderPosition(other.PlayerPosition), other.PlayerSize)));
 
 			//bullet
-			if (isBulletAlive)
+			if (bullet.isAlive)
 			{
-				Rectangle(hdc, RectToParam(GetRect(GetRenderPosition(bulletPosition), bulletSize)));
+				Rectangle(memDC, RectToParam(GetRect(GetRenderPosition(bullet.position), bullet.size)));
 			}
 
+
+			//
+			GetClientRect(hWnd, &bufferRT);
+			BitBlt(hdc, 0, 0, bufferRT.right, bufferRT.bottom, memDC, 0, 0, SRCCOPY);
+			SelectObject(memDC, screenMap);
+			DeleteObject(memoryMap);
+			DeleteDC(memDC);
 			EndPaint(hWnd, &ps);
 			return 0;
 		}

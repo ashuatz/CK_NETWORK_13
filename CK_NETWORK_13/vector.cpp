@@ -1,4 +1,5 @@
 #include "vector.h"
+#include "stdafx.h"
 
 vector2::vector2(const vector2Int &other) : x{ static_cast<float>(other.x) }, y{ static_cast<float>(other.y) } {}
 vector2::vector2(const vector3 &other) : x{ other.x }, y{ other.y } {}

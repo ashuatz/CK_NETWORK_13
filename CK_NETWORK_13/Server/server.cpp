@@ -127,7 +127,6 @@ DWORD WINAPI ProcessClient(LPVOID arg)
 			break;
 
 		buf[retVal] = '\0';
-		printf("[TCP/%s:%d] %s\n", inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port), buf);
 
 		//not string.
 		//int len = strlen(buf);
@@ -135,6 +134,8 @@ DWORD WINAPI ProcessClient(LPVOID arg)
 
 		//Packet access
 		Packet received = Packet::ToPacket(std::string(buf, retVal));
+
+		printf("[TCP/%s:%d] Send Protocol : %d \n", inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port), received.opcode);
 		
 		if (received.opcode == OpCodes::None)
 		{

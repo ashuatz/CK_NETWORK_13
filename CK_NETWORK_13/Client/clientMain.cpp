@@ -7,10 +7,14 @@
 #include "object.h"
 #include "packet.h"
 
+#include "resource.h"
+
 #include <Windows.h>
 #include <sstream>
 #include <string>
 #include <iomanip>
+
+#include <Commctrl.h>
 
 #include <algorithm>
 
@@ -21,6 +25,8 @@ int g_nClientHeight = 480;
 
 // 전역 변수:
 HWND hRootWnd;
+HWND hConnectDialog;
+
 TCHAR szWndAppName[] = TEXT("Client");
 HINSTANCE g_Instance;
 
@@ -31,6 +37,7 @@ HINSTANCE g_Instance;
 //정방향 선언
 void FixedUpdate();
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
+BOOL CALLBACK ConnectDlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
 int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR    lpCmdLine, int       nCmdShow)
 {
@@ -44,7 +51,7 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR    lpCm
 	wc.hIcon = LoadIcon(0, IDI_APPLICATION);					// 윈도우가 최소화 될때 보여줄 아이콘 	
 	wc.hCursor = LoadCursor(0, IDC_CROSS);						// 해당 윈도우 클래스로 만들어진 윈도우의 마우스 커서 핸들, IDC_ARROW, IDC_CROSS, IDC_IBEAM, IDC_NO, IDC_WAIT
 	wc.hbrBackground = (HBRUSH)GetStockObject(WHITE_BRUSH);		// 윈도우 작업 영역을 칠할 배경 브러쉬 핸들 (흰색)	
-	wc.lpszMenuName = NULL;										// 사용할 메뉴를 지정한다. 	
+	wc.lpszMenuName = MAKEINTRESOURCE(IDR_MENU1);										// 사용할 메뉴를 지정한다. 	
 	wc.lpszClassName = szWndAppName;							// 등록하고자 하는 윈도우 클래스 이름 
 
 	if (!RegisterClass(&wc))
@@ -94,7 +101,7 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR    lpCm
 		}
 		else
 		{
-			WaitMessage();
+			//WaitMessage();
 		}
 	}
 
@@ -131,7 +138,8 @@ void FixedUpdate()
 		//smoothDamp
 
 		//camera follow bulletPosition
-		world.worldOffset += (-bullet.position - world.worldOffset) * 0.02f;
+		//world.worldOffset += (-bullet.position - world.worldOffset) * 0.02f;
+		world.worldOffset = (-bullet.position ) ;
 
 		//x = velocity * cos(θ) * t
 		//y = velocity * sin(θ) * t  - 1 / 2g * t ^ 2
@@ -217,6 +225,28 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 			bullet.Init(me.PlayerPosition, vector2(1, 1));
 
+			return 0;
+		}
+
+		case WM_COMMAND:
+		{
+			switch (LOWORD(wParam))
+			{
+				case ID_GAME_CONNECT:
+				{
+					if (!IsWindow(hConnectDialog))
+					{
+						hConnectDialog = (HWND)DialogBox(g_Instance, MAKEINTRESOURCE(IDD_DIALOG1), hWnd, ConnectDlgProc);
+						//hConnectDialog = CreateDialog(g_Instance, MAKEINTRESOURCE(IDD_DIALOG1), hWnd, ConnectDlgProc);
+						ShowWindow(hConnectDialog, SW_SHOW);
+					}
+
+					break;
+				}
+
+				default:
+					break;
+			}
 			return 0;
 		}
 
@@ -335,4 +365,72 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	}
 
 	return DefWindowProc(hWnd, message, wParam, lParam);
+}
+
+BOOL CALLBACK ConnectDlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+	switch (message)
+	{
+		case WM_INITDIALOG:
+		{
+			auto ipbox = GetDlgItem(hWnd, IDC_IPADDRESS1);
+			LPARAM lpAdr = MAKEIPADDRESS(127, 0, 0, 1);
+			SendMessage(ipbox, IPM_SETADDRESS, 0, lpAdr);
+
+			SetDlgItemInt(hWnd, IDC_EDIT1, 3317, 0);
+
+			return TRUE;
+		}
+
+		case WM_COMMAND:
+			switch (wParam)
+			{
+				case IDOK:
+				{
+					auto ipbox = GetDlgItem(hWnd, IDC_IPADDRESS1);
+					auto port = GetDlgItemInt(hWnd, IDC_EDIT1, 0, 0);
+
+					DWORD CurAddress;
+
+					LRESULT SM = SendMessage(ipbox, IPM_GETADDRESS, 0, (LPARAM)&CurAddress);
+
+					BYTE IPPart1 = FIRST_IPADDRESS((LPARAM)CurAddress);
+					BYTE IPPart2 = SECOND_IPADDRESS((LPARAM)CurAddress);
+					BYTE IPPart3 = THIRD_IPADDRESS((LPARAM)CurAddress);
+					BYTE IPPart4 = FOURTH_IPADDRESS((LPARAM)CurAddress);
+					
+					std::string ip = std::string()
+						.append(std::to_string((int)IPPart1)).append(".")
+						.append(std::to_string((int)IPPart2)).append(".")
+						.append(std::to_string((int)IPPart3)).append(".")
+						.append(std::to_string((int)IPPart4));
+
+					if (NetworkModule::GetInstance().Initialize(ip.c_str(), port).TryConnect())
+					{
+						Packet packet;
+						packet.opcode = OpCodes::kRequestInitialize;
+
+						NetworkModule::GetInstance().Send(packet.ToString());
+
+						EndDialog(hWnd, 0);
+					}
+
+					return TRUE;
+				}
+
+
+				case IDCANCEL:
+					EndDialog(hWnd, 0);
+					return TRUE;
+
+				default:
+					break;
+			}
+			break;
+
+		default:
+			break;
+	}
+
+	return false;
 }

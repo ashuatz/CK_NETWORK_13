@@ -3,6 +3,7 @@
 
 #include "network.h"
 #include "vector.h"
+#include "Object.h"
 
 /*
  * OperationCode : 호출 명령
@@ -19,6 +20,16 @@ enum class OpCodes
 	None = 0,
 
 	//connected
+
+	//
+	
+	//초기화 요청. 
+	//플레이어 카운트가 1일 경우 처리하지 않고 대기.
+	//플레이어 카운트가 2일 경우 모든 플레이어에게 연결수립 확인 메시지
+	kRequestInitialize = 1,
+	kResponseInitialize,
+
+	//
 
 	//match making
 	kRequestPID = 10,	//pid 생성 및 전달 요청
@@ -44,7 +55,7 @@ enum class OpCodes
 	kGameEnd,
 };
 
-enum ErrorCodes
+enum class ErrorCodes
 {
 	None = 0,
 
@@ -67,6 +78,26 @@ enum ErrorCodes
 
 	kAlreadyProgress = 140,
 	kTransaction = 144
+};
+
+enum class SendType
+{
+	None,
+	One,
+	All
+};
+
+struct InitializeMessage
+{
+	int pid;
+
+	bool isFirst;
+
+	float default_turn_time;
+
+	Player player_info;
+
+	Player other_info;
 };
 
 struct PIDMessage
@@ -143,6 +174,13 @@ struct Packet
 	{
 		memcpy_s(this, sizeof(*this), &packet, sizeof(packet));
 	}
+	
+	//not covered. need test
+	Packet(std::string message) : Packet()
+	{
+		auto temp = reinterpret_cast<Packet*>(const_cast<char*>(message.c_str()));
+		memcpy_s(this, sizeof(*this), temp, message.size());
+	}
 
 	OpCodes opcode;
 
@@ -152,6 +190,8 @@ struct Packet
 	{
 		//Request
 		char request_data[NetworkModule::_PACKET_SIZE_ / 2];
+
+		InitializeMessage Initialize_message;
 
 		PIDMessage pid_message;
 
@@ -168,6 +208,8 @@ struct Packet
 	{
 		//Response
 		char request_data[NetworkModule::_PACKET_SIZE_ / 2];
+
+		InitializeMessage Initialize_message;
 
 		PIDMessage pid_message;
 

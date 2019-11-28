@@ -9,8 +9,6 @@
 
 //#include "math.h"
 
-#include "Client/GDIHelper.h"
-
 //
 
 #include <Windows.h>

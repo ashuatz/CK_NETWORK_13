@@ -40,6 +40,7 @@ private:
 
 	int cachedFrameRate;
 	float cachedDeltaTime;
+	float maxDeltaTime;
 
 public:
 
@@ -50,12 +51,15 @@ public:
 	}
 
 	float GetDeltaTime() { return cachedDeltaTime; }
+	float GetMaxDeltaTime() { return maxDeltaTime; }
 	int GetFrame() { return cachedFrameRate; }
 
 	void CheckCounter()
 	{
 		auto counter = PerformanceCounter::GetInstance().GetCounter();
 		cachedDeltaTime = counter != INFINITY ? counter : 0;
+		maxDeltaTime = cachedDeltaTime > maxDeltaTime ? cachedDeltaTime : maxDeltaTime;
+
 		PerformanceCounter::GetInstance().StartCounter();
 
 		cachedFrameRate = (int)(1000 / cachedDeltaTime);

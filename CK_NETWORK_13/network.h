@@ -111,12 +111,14 @@ public:
 	//variable data length
 	void Receive()
 	{
+		char buf[_PACKET_SIZE_ + 1];
+
 		while (isConnected)
 		{
+			memset(buf, 0, _PACKET_SIZE_ + 1);
+
 			int result;
 			int len;
-
-			char buf[_PACKET_SIZE_ + 1];
 
 			result = recv(serverSocket, (char *)&len, sizeof(int), 0);
 			if (result == SOCKET_ERROR)
@@ -156,8 +158,8 @@ public:
 
 		if (isConnected)
 		{
-			closesocket(serverSocket);
 			isConnected = false;
+			closesocket(serverSocket);
 
 			//how to terminate Receive thread??
 

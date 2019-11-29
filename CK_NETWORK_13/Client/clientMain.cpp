@@ -35,9 +35,13 @@ HINSTANCE g_Instance;
 #define Vector2ToParam(vector) vector.x,vector.y
 
 //정방향 선언
+int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow);
 void FixedUpdate();
+const RECT GetRect(const vector2& position, const vector2& size);
+const vector2 GetRenderPosition(const vector2& position);
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 BOOL CALLBACK ConnectDlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
+
 
 int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR    lpCmdLine, int       nCmdShow)
 {
@@ -138,8 +142,7 @@ void FixedUpdate()
 		//smoothDamp
 
 		//camera follow bulletPosition
-		//world.worldOffset += (-bullet.position - world.worldOffset) * 0.02f;
-		world.worldOffset = (-bullet.position ) ;
+		world.worldOffset += (-bullet.position - world.worldOffset)  * dt;
 
 		//x = velocity * cos(θ) * t
 		//y = velocity * sin(θ) * t  - 1 / 2g * t ^ 2
@@ -367,6 +370,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	return DefWindowProc(hWnd, message, wParam, lParam);
 }
 
+//Connet Window Proc
 BOOL CALLBACK ConnectDlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	switch (message)

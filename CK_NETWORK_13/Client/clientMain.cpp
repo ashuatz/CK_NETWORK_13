@@ -27,7 +27,9 @@ void MessageLoop();
 void Update();
 void FixedUpdate();
 
-//GameEvent
+//Input / Game Event
+void OnMouseDown(int id);
+void OnMouseUp(int id);
 void OnKeyboardInput(HWND hWnd, WPARAM wParam);
 void Render(HWND hwnd, HDC hdc);
 
@@ -104,6 +106,7 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR    lpCm
 #pragma endregion
 //test : temp variable
 
+
 #pragma region GameLoop
 
 //defines
@@ -111,8 +114,10 @@ Matrix3x3 mat;
 bool bAllowMove;
 bool isMyTurn;
 float turnTime = 0;
+float screenFreezeTime;
 
 bool StartConnection;
+bool isConnected;
 
 Player me;
 Player other;
@@ -159,6 +164,7 @@ void MessageLoop()
 void Awake()
 {
 	StartConnection = false;
+	isConnected = false;
 
 	me.PlayerPosition = vector2(0, 0);
 	me.PlayerScale = vector2(1, 1);
@@ -195,9 +201,10 @@ void FixedUpdate()
 
 	if (bullet.isAlive)
 	{
-
+		//movement 
 		bullet.position += (bullet.moveDirection * bullet.power + vector2(0, world.GetMaxGravity(bullet.gravityTime))) * sdt;
 
+		//time for gravity
 		bullet.gravityTime += sdt;
 
 		//smoothDamp
@@ -209,27 +216,25 @@ void FixedUpdate()
 		//y = velocity * sin(¥è) * t  - 1 / 2g * t ^ 2
 
 		//collision
-
 		if (bullet.position.y < 0)
 		{
 			//release bullet
 			bullet.isAlive = false;
-
-			//auto packet = Packet();
-
-			//packet.opcode = OpCodes::kTurnOver;
-			//packet.request.turn_over_message = TurnOverMessage
-			//{
-			//	//pid
-			//	1
-			//};
-
-			//NetworkModule::GetInstance().Send(packet.ToString());
+			screenFreezeTime = 1.f;
 		}
+	}
+	else if (screenFreezeTime > 0)
+	{
+		//continue move
+		world.worldOffset += (-bullet.position - world.worldOffset)  * sdt;
+
+		//reduce time
+		screenFreezeTime -= usdt;
 	}
 	else
 	{
-		world.worldOffset = world.defaultWorldOffset;
+		//move to default offset
+		world.worldOffset += (world.defaultWorldOffset - world.worldOffset)  * sdt;
 	}
 
 	if (renderTime > targetRenderTime)
@@ -246,6 +251,49 @@ void FixedUpdate()
 			.append((std::stringstream() << std::setw(8) << std::setfill(_T(' ')) << std::setprecision(5) << (Time::GetInstance().GetMaxDeltaTime())).str());
 
 		SetWindowText(hRootWnd, titleName.c_str());
+	}
+}
+
+void OnMouseDown(int id)
+{
+	// 0(L) 2(Wheel) 1(R)
+
+	switch (id)
+	{
+		case 0: //Lbutton Down
+		{
+
+			//test : bullet fire code
+			bullet.Init(mousePosition, &me);
+			bullet.isAlive = true;
+
+			break;
+		}
+
+		case 1: // Rbutton Down
+		{
+
+			//test : bullet initialize Code
+			bullet.Init(vector2(1, 1), &me);
+		}
+	}
+
+}
+
+void OnMouseUp(int id)
+{
+	// 0(L) 2(Wheel) 1(R)
+	switch (id)
+	{
+		case 0: //Lbutton Up
+		{
+			break;
+		}
+
+		case 1: // Rbutton UP
+		{
+
+		}
 	}
 }
 
@@ -322,13 +370,37 @@ void Render(HWND hwnd, HDC hdc)
 	}
 
 	//ui
+	if (!isConnected)
+	{
+		SetTextAlign(hdc, TA_CENTER);
+		std::string turnInfo("Test world"); 
+		TextOut(hdc, g_nClientWidth * 0.5, 10, turnInfo.c_str(), turnInfo.length());
+
+		SetTextAlign(hdc, TA_LEFT);
+		std::string howToConnect("¡èGame ¡æ Connect to Start");
+		TextOut(hdc, 10, 10, howToConnect.c_str(), howToConnect.length());
+	}
+	else if (isMyTurn)
+	{
+		SetTextAlign(hdc, TA_CENTER);
+		std::string turnInfo("My turn"); 
+		TextOut(hdc, g_nClientWidth * 0.5, 10, turnInfo.c_str(), turnInfo.length());
+	}
+	else
+	{
+		SetTextAlign(hdc, TA_CENTER);
+		std::string turnInfo("waiting..");
+		TextOut(hdc, g_nClientWidth * 0.5, 10, turnInfo.c_str(), turnInfo.length());
+	}
+
+	//test
 	std::string tt(std::to_string(turnTime));
 	std::string mp(std::to_string(mousePosition.x).append(",").append(std::to_string(mousePosition.y)));
 	std::string wd(std::to_string(world.worldOffset.x).append(",").append(std::to_string(world.worldOffset.y)));
 
-	TextOut(hdc, g_nClientWidth * 0.5, 20, tt.c_str(), tt.length());
-	TextOut(hdc, g_nClientWidth * 0.5, 40, mp.c_str(), mp.length());
-	TextOut(hdc, g_nClientWidth * 0.5, 60, wd.c_str(), wd.length());
+	TextOut(hdc, g_nClientWidth * 0.7, 20, tt.c_str(), tt.length());
+	TextOut(hdc, g_nClientWidth * 0.7, 40, mp.c_str(), mp.length());
+	TextOut(hdc, g_nClientWidth * 0.7, 60, wd.c_str(), wd.length());
 }
 
 #pragma endregion
@@ -386,17 +458,33 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 		case WM_LBUTTONDOWN:
 		{
-			//test : bullet fire code
+			mousePosition = ScreenToWorldPosition(vector2(LOWORD(lParam), HIWORD(lParam)));
+			OnMouseDown(0);
 
-			bullet.Init(mousePosition, &me);
-			bullet.isAlive = true;
+			return 0;
+		}
+
+		case WM_LBUTTONUP:
+		{
+			mousePosition = ScreenToWorldPosition(vector2(LOWORD(lParam), HIWORD(lParam)));
+			OnMouseUp(0);
+
 			return 0;
 		}
 
 		case WM_RBUTTONDOWN:
 		{
-			//test : bullet initialize Code
-			bullet.Init(vector2(1, 1), &me);
+			mousePosition = ScreenToWorldPosition(vector2(LOWORD(lParam), HIWORD(lParam)));
+			OnMouseDown(1);
+
+			return 0;
+		}
+
+		case WM_RBUTTONUP:
+		{
+			mousePosition = ScreenToWorldPosition(vector2(LOWORD(lParam), HIWORD(lParam)));
+			OnMouseUp(1);
+
 			return 0;
 		}
 
@@ -484,6 +572,7 @@ BOOL CALLBACK ConnectDlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
 						EndDialog(hWnd, 0);
 
 						StartConnection = true;
+						isConnected = true;
 					}
 
 					return TRUE;

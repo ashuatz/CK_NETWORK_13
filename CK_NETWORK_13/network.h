@@ -30,6 +30,7 @@ private:
 	std::queue<std::string> messageQueue;
 	std::thread ReceiveThread;
 
+
 	void err_display(const char *msg)
 	{
 		if (lastError != nullptr)
@@ -50,8 +51,13 @@ public:
 	constexpr static auto _PACKET_SIZE_ = 256;
 	constexpr static auto _TARGET_PORT_ = 3317;
 
-	NetworkModule() : isInitialized(false), isConnected(false), lastError(nullptr) {}
+	NetworkModule() : isInitialized(false), isConnected(false), lastError(nullptr){}
+	~NetworkModule()
+	{
+		CleanUp();
 
+		LocalFree(lastError);
+	}
 	
 	NetworkModule& Initialize(const char* ip, const int port)
 	{
@@ -106,16 +112,14 @@ public:
 		}
 	}
 
-
 	//Receive and enqueue data.
 	//variable data length
 	void Receive()
 	{
-		char buf[_PACKET_SIZE_ + 1];
-
+		char buf[_PACKET_SIZE_ + 8];
 		while (isConnected)
 		{
-			memset(buf, 0, _PACKET_SIZE_ + 1);
+			memset(buf, 0, _PACKET_SIZE_ + 8);
 
 			int result;
 			int len;
@@ -128,24 +132,25 @@ public:
 			}
 			else if (result == 0)
 			{
-				break;
+				continue;
 			}
 
 			// 데이터 받기(가변 길이)
 			result = recv(serverSocket, buf, len, 0);
 			if (result == SOCKET_ERROR)
 			{
-				err_display("recv()");
+				//err_display("recv()");
 				break;
 			}
 			else if (result == 0)
 			{
-				break;
+				continue;
 			}
 
 			//buf[result] = '\0';
 			auto data = std::string(buf, len);
-			messageQueue.push(data);
+			if (data.length() > 0)
+				messageQueue.push(data);
 		}
 	}
 
@@ -164,8 +169,9 @@ public:
 			//how to terminate Receive thread??
 
 			//wait for loop end
+
 			if (ReceiveThread.joinable())
-				ReceiveThread.join();
+				ReceiveThread.detach();
 		}
 
 		WSACleanup();

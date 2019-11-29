@@ -189,6 +189,41 @@ void Update()
 		isMyTurn = received.response.Initialize_message.isFirst;
 		turnTime = received.response.Initialize_message.default_turn_time;
 	}
+
+	auto message = NetworkModule::GetInstance().dequeueMessage();
+	if (message.length() > 0)
+	{
+		Packet packet = Packet::ToPacket(message);
+		if (packet.error_code == ErrorCodes::kOK)
+		{
+			switch (packet.opcode)
+			{
+				case OpCodes::kFire:
+				{
+					Player* shotter = me.pid == packet.response.fire_message.pid ? &me : &other;
+					bullet.Init(packet.response.fire_message.target_position, shotter);
+					bullet.isAlive = true;
+					break;
+				}
+
+				case OpCodes::kResponseTurnEnd:
+				{
+					if (packet.response.turn_over_message.current_pid == me.pid)
+					{
+						isMyTurn = true;
+					}
+					else
+					{
+						isMyTurn = false;
+					}
+				}
+
+				default:
+					break;
+			}
+
+		}
+	}
 }
 
 //client physics update
@@ -221,6 +256,19 @@ void FixedUpdate()
 			//release bullet
 			bullet.isAlive = false;
 			screenFreezeTime = 1.f;
+
+			//if myshoot
+			if (bullet.owner->pid == me.pid)
+			{
+				TurnOverMessage turn_over_message;
+				turn_over_message.last_pid = me.pid;
+
+				Packet packet;
+				packet.opcode = OpCodes::kRequestTurnEnd;
+				packet.request.turn_over_message = turn_over_message;
+
+				NetworkModule::GetInstance().Send(packet.ToString());
+			}
 		}
 	}
 	else if (screenFreezeTime > 0)
@@ -254,18 +302,20 @@ void FixedUpdate()
 	}
 }
 
+//id : 0(L) 2(Wheel) 1(R)
 void OnMouseDown(int id)
 {
-	// 0(L) 2(Wheel) 1(R)
+	if (!isMyTurn)
+		return;
 
 	switch (id)
 	{
 		case 0: //Lbutton Down
 		{
 
-			//test : bullet fire code
-			bullet.Init(mousePosition, &me);
-			bullet.isAlive = true;
+			////test : bullet fire code
+			//bullet.Init(mousePosition, &me);
+			//bullet.isAlive = true;
 
 			break;
 		}
@@ -273,26 +323,41 @@ void OnMouseDown(int id)
 		case 1: // Rbutton Down
 		{
 
-			//test : bullet initialize Code
-			bullet.Init(vector2(1, 1), &me);
+			////test : bullet initialize Code
+			//bullet.Init(vector2(1, 1), &me);
+
+			break;
 		}
 	}
 
 }
 
+//id : 0(L) 2(Wheel) 1(R)
 void OnMouseUp(int id)
 {
-	// 0(L) 2(Wheel) 1(R)
+	if (!isMyTurn)
+		return;
+
 	switch (id)
 	{
 		case 0: //Lbutton Up
 		{
+			FireMessage fire_message;
+			fire_message.pid = me.pid;
+			fire_message.position = me.PlayerPosition;
+			fire_message.target_position = mousePosition;
+
+			Packet packet;
+			packet.opcode = OpCodes::kFire;
+			packet.request.fire_message = fire_message;
+
+			NetworkModule::GetInstance().Send(packet.ToString());
 			break;
 		}
 
 		case 1: // Rbutton UP
 		{
-
+			break;
 		}
 	}
 }
@@ -300,6 +365,9 @@ void OnMouseUp(int id)
 //call by WM
 void OnKeyboardInput(HWND hWnd, WPARAM wParam)
 {
+	if (!isMyTurn)
+		return;
+
 	//send message to server (IO)
 
 	//Game logic MUST be handled by the MessageQueue.

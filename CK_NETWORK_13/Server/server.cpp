@@ -307,6 +307,42 @@ void Protocol(Packet& received, SOCKET sender)
 			break;
 		} // kRequestInitialize end
 
+		case OpCodes::kFire:
+		{
+			Packet packet;
+			packet.opcode = OpCodes::kFire;
+			packet.error_code = ErrorCodes::kOK;
+			packet.response.fire_message = received.request.fire_message;
+
+			for (auto it : connections)
+			{
+				Send(packet, it.sock);
+			}
+
+			printf("kFire sended \n");
+
+			break;
+		}//kFire end
+
+		case OpCodes::kRequestTurnEnd:
+		{
+			TurnOverMessage turn_over_message;
+			turn_over_message.last_pid = received.request.turn_over_message.last_pid;
+			turn_over_message.current_pid = received.request.turn_over_message.last_pid == 0 ? 1 : 0;
+
+			Packet packet;
+			packet.opcode = OpCodes::kResponseTurnEnd;
+			packet.error_code = ErrorCodes::kOK;
+			packet.response.turn_over_message = turn_over_message;
+
+			for (auto it : connections)
+			{
+				Send(packet, it.sock);
+			}
+
+			break;
+		}
+
 		case OpCodes::kRequestPID:
 		{
 

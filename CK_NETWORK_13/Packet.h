@@ -43,8 +43,8 @@ enum class OpCodes
 	//in game
 	kFire = 20,
 
-	kTurnOver,
-	kTurnEnd,
+	kRequestTurnEnd,
+	kResponseTurnEnd,
 
 	kMove,
 
@@ -113,8 +113,10 @@ struct FireMessage
 	//fired position
 	vector2 position;
 
-	//shot angle
-	float angle;
+	//target position
+	vector2 target_position;
+
+	float power;
 };
 
 struct MoveMessage
@@ -144,10 +146,11 @@ struct HitMessage
 
 struct TurnOverMessage
 {
-	//move target
-	int pid;
+	//next turn user
+	int last_pid;
 
 	//next pid
+	int current_pid;
 
 };
 

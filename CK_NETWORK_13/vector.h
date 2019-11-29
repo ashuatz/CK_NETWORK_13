@@ -29,7 +29,7 @@ struct vector2
 		return this;
 	}
 
-	vector2 Normalized()
+	vector2 Normalized() const
 	{
 		return *(vector2(*this).Normalize());
 	}

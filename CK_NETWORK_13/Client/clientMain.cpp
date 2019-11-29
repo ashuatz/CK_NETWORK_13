@@ -31,10 +31,18 @@ void FixedUpdate();
 void OnKeyboardInput(HWND hWnd, WPARAM wParam);
 void Render(HWND hwnd, HDC hdc);
 
-const RECT GetRect(const vector2& position, const vector2& size);
-const vector2 GetRenderPosition(const vector2& position);
+//procedure
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 BOOL CALLBACK ConnectDlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
+
+//converters
+#define RectToParam(rect) rect.left,rect.top,rect.right,rect.bottom
+#define Vector2ToParam(vector) vector.x,vector.y
+const RECT GetRect(const vector2& position, const vector2& size);
+const vector2 GetRenderPosition(const vector2& position);
+const vector2 ScreenToWorldPosition(const vector2& position);
+const COLORREF ToColor(const vector3Int& color32);
+const COLORREF ToColor(const vector3& color);
 
 #pragma region Windows
 
@@ -48,11 +56,6 @@ HWND hConnectDialog;
 
 TCHAR szWndAppName[] = TEXT("Client");
 HINSTANCE g_Instance;
-
-//À¯Æ¿
-#define RectToParam(rect) rect.left,rect.top,rect.right,rect.bottom
-#define Vector2ToParam(vector) vector.x,vector.y
-
 
 int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR    lpCmdLine, int       nCmdShow)
 {
@@ -103,7 +106,6 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR    lpCm
 
 #pragma region GameLoop
 
-
 //defines
 Matrix3x3 mat;
 bool bAllowMove;
@@ -118,6 +120,8 @@ Player other;
 Bullet bullet;
 
 World world;
+
+vector2 mousePosition;
 
 constexpr float targetRenderTime = 0.016;
 float renderTime = 0;
@@ -160,7 +164,7 @@ void Awake()
 	me.PlayerScale = vector2(1, 1);
 	me.PlayerSize = vector2(20, 20);
 
-	bullet.Init(me.PlayerPosition, vector2(1, 1));
+	bullet.Init(vector2(1, 1),&me);
 }
 
 //client update
@@ -184,20 +188,22 @@ void Update()
 //client physics update
 void FixedUpdate()
 {
-	auto dt = Time::GetInstance().GetDeltaTime() * 0.001f; // 0.001f
-	renderTime += dt;
-	turnTime -= dt;
+	auto usdt = Time::GetInstance().GetDeltaTime() * 0.001f; // unscaled delta time
+	auto sdt = usdt * 10; //scaled deltaTime
+	renderTime += usdt;
+	turnTime -= usdt;
 
 	if (bullet.isAlive)
 	{
-		bullet.position += (bullet.moveDirection * bullet.power + vector2(0, world.GetMaxGravity(bullet.gravityTime))) * dt;
 
-		bullet.gravityTime += dt;
+		bullet.position += (bullet.moveDirection * bullet.power + vector2(0, world.GetMaxGravity(bullet.gravityTime))) * sdt;
+
+		bullet.gravityTime += sdt;
 
 		//smoothDamp
 
 		//camera follow bulletPosition
-		world.worldOffset += (-bullet.position - world.worldOffset)  * dt;
+		world.worldOffset += (-bullet.position - world.worldOffset)  * sdt;
 
 		//x = velocity * cos(¥è) * t
 		//y = velocity * sin(¥è) * t  - 1 / 2g * t ^ 2
@@ -296,8 +302,18 @@ void Render(HWND hwnd, HDC hdc)
 	LineTo(hdc, Vector2ToParam(GetRenderPosition(vector2(INT16_MAX, 0))));
 
 	//player
+	HBRUSH brush = CreateSolidBrush(ToColor(me.color32));
+	HBRUSH last = (HBRUSH)SelectObject(hdc, brush);
 	Rectangle(hdc, RectToParam(GetRect(GetRenderPosition(me.PlayerPosition), me.PlayerSize)));
+	SelectObject(hdc, last);
+	DeleteObject(brush);
+
+	//other
+	brush = CreateSolidBrush(ToColor(other.color32));
+	last = (HBRUSH)SelectObject(hdc, brush);
 	Rectangle(hdc, RectToParam(GetRect(GetRenderPosition(other.PlayerPosition), other.PlayerSize)));
+	SelectObject(hdc, last);
+	DeleteObject(brush);
 
 	//bullet
 	if (bullet.isAlive)
@@ -307,7 +323,12 @@ void Render(HWND hwnd, HDC hdc)
 
 	//ui
 	std::string tt(std::to_string(turnTime));
-	TextOut(hdc, g_nClientWidth * 0.5, 100, tt.c_str(), tt.length());
+	std::string mp(std::to_string(mousePosition.x).append(",").append(std::to_string(mousePosition.y)));
+	std::string wd(std::to_string(world.worldOffset.x).append(",").append(std::to_string(world.worldOffset.y)));
+
+	TextOut(hdc, g_nClientWidth * 0.5, 20, tt.c_str(), tt.length());
+	TextOut(hdc, g_nClientWidth * 0.5, 40, mp.c_str(), mp.length());
+	TextOut(hdc, g_nClientWidth * 0.5, 60, wd.c_str(), wd.length());
 }
 
 #pragma endregion
@@ -356,18 +377,26 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			return 0;
 		}
 
+		case WM_MOUSEMOVE:
+		{
+			mousePosition = ScreenToWorldPosition(vector2(LOWORD(lParam), HIWORD(lParam)));
+
+			return 0;
+		}
+
 		case WM_LBUTTONDOWN:
 		{
 			//test : bullet fire code
-			bullet.isAlive = true;
 
+			bullet.Init(mousePosition, &me);
+			bullet.isAlive = true;
 			return 0;
 		}
 
 		case WM_RBUTTONDOWN:
 		{
 			//test : bullet initialize Code
-			bullet.Init(me.PlayerPosition, vector2(1, 1));
+			bullet.Init(vector2(1, 1), &me);
 			return 0;
 		}
 
@@ -501,4 +530,25 @@ const vector2 GetRenderPosition(const vector2& position)
 	return vector2(
 		g_nClientWidth * 0.5f + position.x + world.worldOffset.x,
 		g_nClientHeight * 0.5f - (position.y + world.worldOffset.y));
+}
+
+const vector2 ScreenToWorldPosition(const vector2& position)
+{
+	vector2 worldPosition;
+
+	auto renderOffset = GetRenderPosition(vector2());
+	worldPosition.x = position.x - renderOffset.x;
+	worldPosition.y = -(position.y - renderOffset.y);
+
+	return worldPosition;
+}
+
+const COLORREF ToColor(const vector3Int& color32)
+{
+	return RGB(color32.x, color32.y, color32.z);
+}
+
+const COLORREF ToColor(const vector3& color)
+{
+	return ToColor(vector3Int(color * 255));
 }

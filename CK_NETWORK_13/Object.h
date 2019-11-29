@@ -42,6 +42,16 @@ public:
 	vector2 PlayerPosition;
 	vector2 PlayerScale;
 	vector2 PlayerSize;
+
+	vector3Int color32;
+	vector3Int bulletColor32;
+
+	Player()
+	{
+		PlayerPosition = vector2(0, 0);
+		PlayerScale = vector2(1, 1);
+		PlayerSize = vector2(20, 20);
+	}
 };
 
 class World

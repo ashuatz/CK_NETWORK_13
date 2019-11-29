@@ -8,6 +8,8 @@
 
 #include <string>
 
+#include <random>
+
 #include "singleton.h"
 #include "packet.h"
 
@@ -16,16 +18,24 @@
 #define BUFSIZE 512
 
 
-//전방선언
-void err_quit(const char *msg);
+#pragma region Utils / default functions
 
-void err_display(const char *msg);
 
 template <typename T>
-int CustomRemove(std::vector<T> target, const T& rhs);
+int CustomRemove(std::vector<T> target, const T& rhs)
+{
+	auto lastSize = target.size();
+	auto end = target.erase(std::remove_if(target.begin(), target.end(),
+		[=](const T& t)
+	{
+		return t == rhs;
+	}), target.end());
 
-void PacketSetting(Packet* packet);
-
+	return (lastSize - std::distance(target.begin(), end)) / sizeof(T);
+}
+void err_quit(const char *msg);
+void err_display(const char *msg);
+void Protocol(Packet& received, SOCKET sender);
 void Send(Packet packet, SOCKET socket);
 DWORD WINAPI ProcessClient(LPVOID arg);
 
@@ -62,23 +72,9 @@ struct Connection
 	int addrlen;
 };
 
-template <typename T>
-int CustomRemove(std::vector<T> target, const T& rhs)
-{
-	auto lastSize = target.size();
-	auto end = target.erase(std::remove_if(target.begin(), target.end(),
-		[=](const T& t)
-	{
-		return t == rhs;
-	}), target.end());
+#pragma endregion
 
-	return (lastSize - std::distance(target.begin(), end)) / sizeof(T);
-}
-
-void PacketSetting(Packet* packet)
-{
-
-}
+#pragma region ServerConnectionLogic
 
 std::vector<Connection> connections;
 std::mutex connectionsLock;
@@ -136,7 +132,8 @@ DWORD WINAPI ProcessClient(LPVOID arg)
 		Packet received = Packet::ToPacket(std::string(buf, retVal));
 
 		printf("[TCP/%s:%d] Send Protocol : %d \n", inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port), received.opcode);
-		
+
+		//error
 		if (received.opcode == OpCodes::None)
 		{
 			received.error_code = ErrorCodes::kBadRequest;
@@ -145,36 +142,9 @@ DWORD WINAPI ProcessClient(LPVOID arg)
 			continue;
 		}
 
-		switch (received.opcode)
-		{
-			case OpCodes::kRequestPID:
-			{
+		//settin
 
-				break;
-			}
-
-			case OpCodes::kRequestFirst:
-			{
-				break;
-			}
-
-			case OpCodes::kRequestHit:
-			{
-				break;
-			}
-
-			default:
-				//default is RPC
-
-				memcpy_s(received.response.request_data, 128, received.request.request_data, 128);
-				received.error_code = ErrorCodes::kOK;
-				for (auto it : connections)
-				{
-					Send(received, it.sock);
-				}
-
-				break;
-		}
+		Protocol(received, client_sock);
 	}
 
 	//remove target client
@@ -192,9 +162,6 @@ DWORD WINAPI ProcessClient(LPVOID arg)
 	printf("[TCP 서버] 클라이언트 종료: IP 주소=%s, 포트 번호=%d\n", inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port));
 	return 0;
 }
-
-
-
 
 int main()
 {
@@ -267,3 +234,108 @@ int main()
 }
 
 
+#pragma endregion
+
+
+
+#pragma region GamePlayLogic
+
+
+void Protocol(Packet& received, SOCKET sender)
+{
+	switch (received.opcode)
+	{
+		case OpCodes::kRequestInitialize:
+		{
+			if (connections.size() != 2)
+				break;
+
+			//setting Initialize data
+
+			auto other = std::find_if(connections.begin(), connections.end(), [=](Connection temp)
+			{
+				return temp.sock != sender;
+			});
+
+			std::mt19937 mt((std::random_device())());
+			std::uniform_int_distribution<> dist(0, 1);
+
+			//make random
+			auto random_value = dist(mt);
+
+			Player a;
+			a.PlayerPosition = vector2(-100, 0);
+			a.color32 = vector3Int(226, 12, 103);
+			a.bulletColor32 = vector3Int(148, 7, 67);
+			a.pid = random_value;
+
+			Player b;
+			b.PlayerPosition = vector2(100, 0);
+			b.color32 = vector3Int(151, 204, 40);
+			b.bulletColor32 = vector3Int(99, 133, 27);
+			b.pid = random_value == 0 ? 1 : 0;
+
+			InitializeMessage init_msg_a;
+			init_msg_a.isFirst = true;
+			init_msg_a.player_info = a;
+			init_msg_a.other_info = b;
+			init_msg_a.pid = a.pid;
+			init_msg_a.default_turn_time = 10.f;
+
+			InitializeMessage init_msg_b;
+			init_msg_b.isFirst = false;
+			init_msg_b.player_info = b;
+			init_msg_b.other_info = a;
+			init_msg_b.pid = b.pid;
+			init_msg_b.default_turn_time = 10.f;
+
+			Packet packet_a;
+			packet_a.opcode = OpCodes::kResponseInitialize;
+			packet_a.error_code = ErrorCodes::kOK;
+			packet_a.response.Initialize_message = init_msg_a;
+
+			Packet packet_b;
+			packet_b.opcode = OpCodes::kResponseInitialize;
+			packet_b.error_code = ErrorCodes::kOK;
+			packet_b.response.Initialize_message = init_msg_b;
+
+			Send(random_value == 0 ? packet_a : packet_b, sender);
+			Send(random_value == 0 ? packet_b : packet_a, (*other).sock);
+
+			printf("kRequestInitialize sended \n");
+
+			break;
+		} // kRequestInitialize end
+
+		case OpCodes::kRequestPID:
+		{
+
+			break;
+		}
+
+		case OpCodes::kRequestFirst:
+		{
+			break;
+		}
+
+		case OpCodes::kRequestHit:
+		{
+			break;
+		}
+
+		default:
+		{
+			//default is RPC
+			memcpy_s(received.response.request_data, 128, received.request.request_data, 128);
+			received.error_code = ErrorCodes::kOK;
+			for (auto it : connections)
+			{
+				Send(received, it.sock);
+			}
+
+			break;
+		}
+	}
+}
+
+#pragma endregion

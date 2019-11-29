@@ -18,7 +18,26 @@
 
 #include <algorithm>
 
-int PID;
+//정방향 선언
+int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow);
+
+//GameLoop
+void Awake();
+void MessageLoop();
+void Update();
+void FixedUpdate();
+
+//GameEvent
+void OnKeyboardInput(HWND hWnd, WPARAM wParam);
+void Render(HWND hwnd, HDC hdc);
+
+const RECT GetRect(const vector2& position, const vector2& size);
+const vector2 GetRenderPosition(const vector2& position);
+LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
+BOOL CALLBACK ConnectDlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
+
+#pragma region Windows
+
 bool g_bIsActive;
 int g_nClientWidth = 640;
 int g_nClientHeight = 480;
@@ -33,14 +52,6 @@ HINSTANCE g_Instance;
 //유틸
 #define RectToParam(rect) rect.left,rect.top,rect.right,rect.bottom
 #define Vector2ToParam(vector) vector.x,vector.y
-
-//정방향 선언
-int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow);
-void FixedUpdate();
-const RECT GetRect(const vector2& position, const vector2& size);
-const vector2 GetRenderPosition(const vector2& position);
-LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
-BOOL CALLBACK ConnectDlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
 
 int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR    lpCmdLine, int       nCmdShow)
@@ -69,8 +80,8 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR    lpCm
 		//(WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU  | WS_MINIMIZEBOX | WS_MAXIMIZEBOX ),
 		(1920 / 2) - (g_nClientWidth / 2),				//x
 		(1080 / 2) - (g_nClientHeight / 2), 			//y
-		g_nClientWidth -1, 					            //Width
-		g_nClientHeight -1, 								//Height
+		g_nClientWidth - 1, 					            //Width
+		g_nClientHeight - 1, 								//Height
 		NULL,							    //hWndParent
 		NULL,							    //hMenu
 		hInstance,						    //hInstance
@@ -82,12 +93,42 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR    lpCm
 	ShowWindow(hRootWnd, nCmdShow);
 
 	// 4. 메시지 루프 
+	MessageLoop();
 
+	return 0;
+}
+
+#pragma endregion
+//test : temp variable
+
+#pragma region GameLoop
+
+
+//defines
+Matrix3x3 mat;
+bool bAllowMove;
+bool isMyTurn;
+float turnTime = 0;
+
+bool StartConnection;
+
+Player me;
+Player other;
+
+Bullet bullet;
+
+World world;
+
+constexpr float targetRenderTime = 0.016;
+float renderTime = 0;
+
+void MessageLoop()
+{
 	MSG Message;
-	HDC hdc = GetDC(hRootWnd);
 	while (true)
 	{
 		//System
+		Update();
 
 		//physics
 		FixedUpdate();
@@ -108,30 +149,44 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR    lpCm
 			//WaitMessage();
 		}
 	}
-
-	ReleaseDC(hRootWnd, hdc);
-
-	return 0;
 }
 
-//test : temp variable
+//client initialize
+void Awake()
+{
+	StartConnection = false;
 
-Matrix3x3 mat;
+	me.PlayerPosition = vector2(0, 0);
+	me.PlayerScale = vector2(1, 1);
+	me.PlayerSize = vector2(20, 20);
 
-Player me;
-Player other;
+	bullet.Init(me.PlayerPosition, vector2(1, 1));
+}
 
-Bullet bullet;
+//client update
+void Update()
+{
+	if (StartConnection)
+	{
+		StartConnection = false;
 
-World world;
+		//init
+		auto init_message = NetworkModule::GetInstance().SyncDequeueMessage();
+		Packet received = Packet::ToPacket(init_message);
+		me = received.response.Initialize_message.player_info;
+		other = received.response.Initialize_message.other_info;
 
-constexpr float targetRenderTime = 0.016;
-float renderTime = 0;
+		isMyTurn = received.response.Initialize_message.isFirst;
+		turnTime = received.response.Initialize_message.default_turn_time;
+	}
+}
 
+//client physics update
 void FixedUpdate()
 {
-	auto dt = Time::GetInstance().GetDeltaTime() * 0.01; // 0.001f
+	auto dt = Time::GetInstance().GetDeltaTime() * 0.001f; // 0.001f
 	renderTime += dt;
+	turnTime -= dt;
 
 	if (bullet.isAlive)
 	{
@@ -153,7 +208,7 @@ void FixedUpdate()
 		{
 			//release bullet
 			bullet.isAlive = false;
-			
+
 			//auto packet = Packet();
 
 			//packet.opcode = OpCodes::kTurnOver;
@@ -182,36 +237,82 @@ void FixedUpdate()
 			.append((std::stringstream() << std::setw(8) << std::setfill(_T(' ')) << std::setprecision(5) << (Time::GetInstance().GetDeltaTime())).str())
 			.append(_T(" ms"))
 			.append(_T(" max      "))
-			.append((std::stringstream() << std::setw(8)<< std::setfill(_T(' '))<<std::setprecision(5)<<(Time::GetInstance().GetMaxDeltaTime())).str());
+			.append((std::stringstream() << std::setw(8) << std::setfill(_T(' ')) << std::setprecision(5) << (Time::GetInstance().GetMaxDeltaTime())).str());
 
 		SetWindowText(hRootWnd, titleName.c_str());
 	}
 }
 
-
-const RECT GetRect(const vector2& position, const vector2& size)
+//call by WM
+void OnKeyboardInput(HWND hWnd, WPARAM wParam)
 {
-/* 
-	LONG    left;
-	LONG    top;
-	LONG    right;
-	LONG    bottom;
- */
+	//send message to server (IO)
 
-	return RECT{
-		static_cast<LONG>(position.x - (size.x / 2)),
-		static_cast<LONG>(position.y - (size.y / 2)),
-		static_cast<LONG>(position.x + (size.x / 2)),
-		static_cast<LONG>(position.y + (size.y / 2)) };
+	//Game logic MUST be handled by the MessageQueue.
+
+	//camera offset test code
+
+	switch (wParam)
+	{
+		case VK_SPACE:
+		{
+			//test PID request function
+			Packet packet;
+			packet.opcode = OpCodes::kRequestPID;
+			NetworkModule::GetInstance().Send(packet.ToString());
+
+			const auto message = NetworkModule::GetInstance().SyncDequeueMessage();
+			Packet received = Packet::ToPacket(message);
+			if (received.error_code != ErrorCodes::kOK)
+			{
+				//error
+				break;
+			}
+
+			//PID = received.response.pid_message.pid;
+
+			break;
+		}
+		case VK_DOWN: world.defaultWorldOffset += vector2(0, -5); break;
+		case VK_UP:world.defaultWorldOffset += vector2(0, 5); break;
+
+		case VK_LEFT:world.defaultWorldOffset += vector2(5, 0); break;
+		case VK_RIGHT:world.defaultWorldOffset += vector2(-5, 0); break;
+
+		default:
+			break;
+	}
+
+	InvalidateRect(hWnd, 0, 1);
+
+	//offset test code end
 }
 
-const vector2 GetRenderPosition(const vector2& position)
+//call by WM
+void Render(HWND hwnd, HDC hdc)
 {
-	return vector2(
-		g_nClientWidth * 0.5f + position.x + world.worldOffset.x,
-		g_nClientHeight * 0.5f - (position.y + world.worldOffset.y));
+	//horizon
+	MoveToEx(hdc, Vector2ToParam(GetRenderPosition(vector2(-INT16_MAX, 0))), 0);
+	LineTo(hdc, Vector2ToParam(GetRenderPosition(vector2(INT16_MAX, 0))));
+
+	//player
+	Rectangle(hdc, RectToParam(GetRect(GetRenderPosition(me.PlayerPosition), me.PlayerSize)));
+	Rectangle(hdc, RectToParam(GetRect(GetRenderPosition(other.PlayerPosition), other.PlayerSize)));
+
+	//bullet
+	if (bullet.isAlive)
+	{
+		Rectangle(hdc, RectToParam(GetRect(GetRenderPosition(bullet.position), bullet.size)));
+	}
+
+	//ui
+	std::string tt(std::to_string(turnTime));
+	TextOut(hdc, g_nClientWidth * 0.5, 100, tt.c_str(), tt.length());
 }
 
+#pragma endregion
+
+#pragma region Procedure
 
 // 0.1. 윈도우 프로시저 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
@@ -222,12 +323,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	{
 		case WM_CREATE:
 		{
-			me.PlayerPosition = vector2(0, 0);
-			me.PlayerScale = vector2(1, 1);
-			me.PlayerSize = vector2(20, 20);
-
-			bullet.Init(me.PlayerPosition, vector2(1, 1));
-
+			Awake();
 			return 0;
 		}
 
@@ -255,46 +351,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 		case WM_KEYDOWN:
 		{
-			//send message to server (IO)
-
-			//Game logic MUST be handled by the MessageQueue.
-
-			//camera offset test code
-
-			switch (wParam) 
-			{
-				case VK_SPACE:
-				{
-					//test PID request function
-					Packet packet;
-					packet.opcode = OpCodes::kRequestPID;
-					NetworkModule::GetInstance().Send(packet.ToString());
-
-					const auto message = NetworkModule::GetInstance().SyncDequeueMessage();
-					Packet received = Packet::ToPacket(message);
-					if (received.error_code != ErrorCodes::kOK)
-					{
-						//error
-						break;
-					}
-
-					PID = received.response.pid_message.pid;
-
-					break;
-				}
-				case VK_DOWN: world.defaultWorldOffset += vector2(0, -2); break;
-				case VK_UP:world.defaultWorldOffset += vector2(0, 2); break;
-
-				case VK_LEFT:world.defaultWorldOffset += vector2(2, 0); break;
-				case VK_RIGHT:world.defaultWorldOffset += vector2(-2, 0); break;
-
-				default:
-					break;
-			}
-
-			InvalidateRect(hWnd, 0, 1);
-
-			//offset test code end
+			OnKeyboardInput(hWnd, wParam);
 
 			return 0;
 		}
@@ -330,27 +387,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 			PatBlt(memDC, 0, 0, bufferRT.right, bufferRT.bottom, WHITENESS);
 
-
-			//HDC hdc = hMemoryDC;
-
-			vector2 vector = vector2(1, 1);
-
-			//test : render
-
-			//horizon
-			MoveToEx(memDC, Vector2ToParam(GetRenderPosition(vector2(-INT16_MAX, 0))), 0);
-			LineTo(memDC, Vector2ToParam(GetRenderPosition(vector2(INT16_MAX, 0))));
-
-			//player
-			Rectangle(memDC, RectToParam(GetRect(GetRenderPosition(me.PlayerPosition), me.PlayerSize)));
-			Rectangle(memDC, RectToParam(GetRect(GetRenderPosition(other.PlayerPosition), other.PlayerSize)));
-
-			//bullet
-			if (bullet.isAlive)
-			{
-				Rectangle(memDC, RectToParam(GetRect(GetRenderPosition(bullet.position), bullet.size)));
-			}
-
+			Render(hWnd, memDC);
 
 			//
 			GetClientRect(hWnd, &bufferRT);
@@ -382,7 +419,6 @@ BOOL CALLBACK ConnectDlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
 			SendMessage(ipbox, IPM_SETADDRESS, 0, lpAdr);
 
 			SetDlgItemInt(hWnd, IDC_EDIT1, 3317, 0);
-
 			return TRUE;
 		}
 
@@ -402,7 +438,7 @@ BOOL CALLBACK ConnectDlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
 					BYTE IPPart2 = SECOND_IPADDRESS((LPARAM)CurAddress);
 					BYTE IPPart3 = THIRD_IPADDRESS((LPARAM)CurAddress);
 					BYTE IPPart4 = FOURTH_IPADDRESS((LPARAM)CurAddress);
-					
+
 					std::string ip = std::string()
 						.append(std::to_string((int)IPPart1)).append(".")
 						.append(std::to_string((int)IPPart2)).append(".")
@@ -417,6 +453,8 @@ BOOL CALLBACK ConnectDlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
 						NetworkModule::GetInstance().Send(packet.ToString());
 
 						EndDialog(hWnd, 0);
+
+						StartConnection = true;
 					}
 
 					return TRUE;
@@ -437,4 +475,30 @@ BOOL CALLBACK ConnectDlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
 	}
 
 	return false;
+}
+
+#pragma endregion
+
+
+const RECT GetRect(const vector2& position, const vector2& size)
+{
+	/*
+		LONG    left;
+		LONG    top;
+		LONG    right;
+		LONG    bottom;
+	 */
+
+	return RECT{
+		static_cast<LONG>(position.x - (size.x / 2)),
+		static_cast<LONG>(position.y - (size.y / 2)),
+		static_cast<LONG>(position.x + (size.x / 2)),
+		static_cast<LONG>(position.y + (size.y / 2)) };
+}
+
+const vector2 GetRenderPosition(const vector2& position)
+{
+	return vector2(
+		g_nClientWidth * 0.5f + position.x + world.worldOffset.x,
+		g_nClientHeight * 0.5f - (position.y + world.worldOffset.y));
 }

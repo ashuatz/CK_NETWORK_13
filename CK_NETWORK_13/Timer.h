@@ -57,10 +57,10 @@ public:
 	void CheckCounter()
 	{
 		auto counter = PerformanceCounter::GetInstance().GetCounter();
+		PerformanceCounter::GetInstance().StartCounter();
 		cachedDeltaTime = counter != INFINITY ? counter : 0;
 		maxDeltaTime = cachedDeltaTime > maxDeltaTime ? cachedDeltaTime : maxDeltaTime;
 
-		PerformanceCounter::GetInstance().StartCounter();
 
 		cachedFrameRate = (int)(1000 / cachedDeltaTime);
 		currentTime += cachedDeltaTime;

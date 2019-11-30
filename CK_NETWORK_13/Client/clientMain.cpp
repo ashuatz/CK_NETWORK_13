@@ -60,6 +60,7 @@ const int sign(const T& val)
 {
 	return (T(0) < val) - (val < T(0));
 }
+
 static float lerp(const float& a, const float& b, const float& f)
 {
 	return a + f * (b - a);
@@ -132,9 +133,6 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR    lpCm
 #pragma endregion
 
 #pragma region GameLoop
-
-//defines
-Matrix3x3 mat;
 
 //move
 bool bAllowMove;
@@ -360,13 +358,13 @@ void FixedUpdate()
 		//camera follow bulletPosition
 		world.worldOffset += (-bullet.position - world.worldOffset)  * sdt;
 
-		if (bullet.owner->pid == other.pid && aabb(GetRect(bullet.position, bullet.size), GetRect(me.PlayerPosition, me.PlayerSize)))
+		if (isConnected && bullet.owner->pid == other.pid && aabb(GetRect(bullet.position, bullet.size), GetRect(me.PlayerPosition, me.PlayerSize)))
 		{
 			bullet.isAlive = false;
 			screenFreezeTime = 2.4f;
 		}
 
-		if (bullet.owner->pid == me.pid && aabb(GetRect(bullet.position, bullet.size), GetRect(other.PlayerPosition, other.PlayerSize)))
+		if (isConnected && bullet.owner->pid == me.pid && aabb(GetRect(bullet.position, bullet.size), GetRect(other.PlayerPosition, other.PlayerSize)))
 		{
 			bullet.isAlive = false;
 			screenFreezeTime = 2.4f;
@@ -480,24 +478,22 @@ void OnMouseUp(int id)
 	{
 		case 0: //Lbutton Up
 		{
+			if (bullet.isAlive)
+				break;
+
+			float pressRate = (PressTime > 2 ? 2 : PressTime) / maxPressTime;
+			float power = 30 + (120 * pressRate);
+
 			//testworld code
 			if (!isConnected)
 			{
 				bullet.Init(mousePosition, &me);
+				bullet.power = power;
 				bullet.isAlive = true;
+
+				isPressed = false;
 				break;
 			}
-
-			//30 ~ 150
-
-			//power = inputtime remap 30~150
-			//player generate position : 400 ~ 1250
-
-			//maping 0 ~ 1
-			// 0== (2 - (2 - 0))/2 / /1== 2 - (2 - 2)
-
-			float pressRate = (PressTime > 2 ? 2 : PressTime) / maxPressTime;
-			float power = 30 + (120 * pressRate);
 
 			FireMessage fire_message;
 			fire_message.pid = me.pid;
@@ -734,17 +730,17 @@ void Render(HWND hwnd, HDC hdc)
 
 
 	//test
-	std::string tt(std::to_string(turnTime));
-	std::string mp(std::to_string(mousePosition.x).append(",").append(std::to_string(mousePosition.y)));
-	std::string wd(std::string("world offset :").append(std::to_string(world.worldOffset.x).append(",").append(std::to_string(world.worldOffset.y))));
-	std::string pps(std::string("dir :").append(std::to_string(dir.x).append(",").append(std::to_string(dir.y))));
-	std::string vp(std::string("viewPort :").append(std::to_string(GetViewPortPosition(vector2()).x).append(",").append(std::to_string(GetViewPortPosition(vector2()).y))));
+	//std::string tt(std::to_string(turnTime));
+	//std::string mp(std::to_string(mousePosition.x).append(",").append(std::to_string(mousePosition.y)));
+	//std::string wd(std::string("world offset :").append(std::to_string(world.worldOffset.x).append(",").append(std::to_string(world.worldOffset.y))));
+	//std::string pps(std::string("dir :").append(std::to_string(dir.x).append(",").append(std::to_string(dir.y))));
+	//std::string vp(std::string("viewPort :").append(std::to_string(GetViewPortPosition(vector2()).x).append(",").append(std::to_string(GetViewPortPosition(vector2()).y))));
 
-	TextOut(hdc, g_nClientWidth * 0.7, 20, tt.c_str(), tt.length());
-	TextOut(hdc, g_nClientWidth * 0.7, 40, mp.c_str(), mp.length());
-	TextOut(hdc, g_nClientWidth * 0.7, 60, wd.c_str(), wd.length());
-	TextOut(hdc, g_nClientWidth * 0.7, 80, vp.c_str(), vp.length());
-	TextOut(hdc, g_nClientWidth * 0.7, 120, pps.c_str(), pps.length());
+	//TextOut(hdc, g_nClientWidth * 0.7, 20, tt.c_str(), tt.length());
+	//TextOut(hdc, g_nClientWidth * 0.7, 40, mp.c_str(), mp.length());
+	//TextOut(hdc, g_nClientWidth * 0.7, 60, wd.c_str(), wd.length());
+	//TextOut(hdc, g_nClientWidth * 0.7, 80, vp.c_str(), vp.length());
+	//TextOut(hdc, g_nClientWidth * 0.7, 120, pps.c_str(), pps.length());
 }
 
 #pragma endregion

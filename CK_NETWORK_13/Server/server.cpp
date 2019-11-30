@@ -259,18 +259,18 @@ void Protocol(Packet& received, SOCKET sender)
 
 			std::mt19937 mt((std::random_device())());
 			std::uniform_int_distribution<> dist(0, 1);
-
+			std::uniform_int_distribution<> pos_dist(400, 1250);
 			//make random
 			auto random_value = dist(mt);
 
 			Player a;
-			a.PlayerPosition = vector2(-100, 0);
+			a.PlayerPosition = vector2(-pos_dist(mt), 0);
 			a.color32 = vector3Int(226, 12, 103);
 			a.bulletColor32 = vector3Int(148, 7, 67);
 			a.pid = random_value;
 
 			Player b;
-			b.PlayerPosition = vector2(100, 0);
+			b.PlayerPosition = vector2(pos_dist(mt), 0);
 			b.color32 = vector3Int(151, 204, 40);
 			b.bulletColor32 = vector3Int(99, 133, 27);
 			b.pid = random_value == 0 ? 1 : 0;
@@ -341,21 +341,20 @@ void Protocol(Packet& received, SOCKET sender)
 			}
 
 			break;
-		}
-
-		case OpCodes::kRequestPID:
-		{
-
-			break;
-		}
-
-		case OpCodes::kRequestFirst:
-		{
-			break;
-		}
+		}//kRequestTurnEnd end
 
 		case OpCodes::kRequestHit:
 		{
+			Packet packet;
+			packet.opcode = OpCodes::kResponseHit;
+			packet.error_code = ErrorCodes::kOK;
+			packet.response.hit_message = received.request.hit_message;
+
+			for (auto it : connections)
+			{
+				Send(packet, it.sock);
+			}
+
 			break;
 		}
 

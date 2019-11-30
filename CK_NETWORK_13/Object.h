@@ -5,9 +5,11 @@ class Player
 {
 public:
 	int pid;
+	float HP;
+	float displayHP;
+	float lastDisplayHp;
 
 	vector2 PlayerPosition;
-	vector2 PlayerScale;
 	vector2 PlayerSize;
 
 	vector3Int color32;
@@ -16,8 +18,8 @@ public:
 	Player()
 	{
 		PlayerPosition = vector2(0, 0);
-		PlayerScale = vector2(1, 1);
 		PlayerSize = vector2(20, 20);
+		lastDisplayHp = displayHP = HP = 10000;
 	}
 };
 
@@ -31,18 +33,21 @@ public:
 	vector2 moveDirection;
 
 	vector2 position;
-	vector2 scale;
 	vector2 size;
 
 	Player* owner;
 
 	Bullet()
 	{
-		power = 50;
+		//30 ~ 150
+
+		//power = inputtime remap 30~150
+		//player generate position : 400 ~ 1250
+
+		power = 150; // 120 -1600 // 150 -2500
 		moveDirection = vector2(1, 1);
 
 		position = vector2(0,0);
-		scale = vector2(1, 1);
 		size = vector2(5, 5);
 	}
 
@@ -66,7 +71,7 @@ public:
 	vector2 worldOffset;
 
 	static constexpr float Gravity = -9;
-	static constexpr float maxGravity = -100;
+	static constexpr float maxGravity = -1000;
 
 	const float GetMaxGravity(float time)
 	{

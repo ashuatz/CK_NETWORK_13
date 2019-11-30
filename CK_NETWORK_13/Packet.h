@@ -21,8 +21,6 @@ enum class OpCodes
 
 	//connected
 
-	//
-	
 	//초기화 요청. 
 	//플레이어 카운트가 1일 경우 처리하지 않고 대기.
 	//플레이어 카운트가 2일 경우 모든 플레이어에게 연결수립 확인 메시지
@@ -32,23 +30,23 @@ enum class OpCodes
 	//
 
 	//match making
-	kRequestPID = 10,	//pid 생성 및 전달 요청
-	kResponsePID,
+	//kRequestPID = 10,	//pid 생성 및 전달 요청
+	//kResponsePID,
 
-	kRequestFirst, // 누가 선공인가
-	kResponseFirst,
+	//kRequestFirst, // 누가 선공인가
+	//kResponseFirst,
 
-	kStart,
+	//kStart,
 
 	//in game
 	kFire = 20,
 
-	kRequestTurnEnd,
+	kRequestTurnEnd, // 21
 	kResponseTurnEnd,
 
 	kMove,
 
-	kRequestHit,
+	kRequestHit, // 24
 	kResponseHit,
 
 
@@ -156,7 +154,7 @@ struct TurnOverMessage
 
 struct GameEndMessage
 {
-	
+	int pid;
 };
 
 struct namae
@@ -234,7 +232,7 @@ struct Packet
 		Packet packet;
 
 		auto temp = reinterpret_cast<Packet*>(const_cast<char*>(message.c_str()));
-		memcpy_s(&packet, sizeof(packet), temp, message.size());
+		memcpy_s(&packet, sizeof(packet), temp, sizeof(*temp));
 
 		return packet;
 	}

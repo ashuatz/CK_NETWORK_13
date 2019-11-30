@@ -45,6 +45,7 @@ const vector2 GetRenderPosition(const vector2& position);
 const vector2 ScreenToWorldPosition(const vector2& position);
 const COLORREF ToColor(const vector3Int& color32);
 const COLORREF ToColor(const vector3& color);
+const bool aabb(RECT a, RECT b);
 
 #pragma region Windows
 
@@ -104,8 +105,6 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR    lpCm
 }
 
 #pragma endregion
-//test : temp variable
-
 
 #pragma region GameLoop
 
@@ -170,7 +169,6 @@ void Awake()
 	isMyTurn = true;
 
 	me.PlayerPosition = vector2(0, 0);
-	me.PlayerScale = vector2(1, 1);
 	me.PlayerSize = vector2(20, 20);
 
 	bullet.Init(vector2(1, 1),&me);
@@ -209,6 +207,7 @@ void Update()
 					Player* shotter = me.pid == packet.response.fire_message.pid ? &me : &other;
 					bullet.Init(packet.response.fire_message.target_position, shotter);
 					bullet.isAlive = true;
+
 					break;
 				}
 
@@ -216,6 +215,55 @@ void Update()
 				{
 					isMyTurn = packet.response.turn_over_message.current_pid == me.pid;
 					world.defaultWorldOffset = isMyTurn ? -me.PlayerPosition : -other.PlayerPosition;
+
+					break;
+				}
+
+				case OpCodes::kResponseHit:
+				{
+					Player& damaged = me.pid == packet.response.fire_message.pid ? me : other;
+					damaged.HP -= packet.response.hit_message.amount;
+
+					if (damaged.HP < 0)
+						damaged.HP = 0;
+
+					if (damaged.HP <= 0 && damaged.pid == me.pid)
+					{
+						GameEndMessage game_end_message;
+						game_end_message.pid = me.pid;
+
+						Packet end_packet;
+						end_packet.opcode = OpCodes::kGameEnd;
+						end_packet.request.game_end_message;
+
+						NetworkModule::GetInstance().Send(end_packet.ToString());
+					}
+
+					break;
+				}
+
+				case OpCodes::kGameEnd:
+				{
+					if (packet.response.game_end_message.pid == me.pid)
+					{
+						// lose
+						if (MessageBox(hRootWnd, _T("GameEnd"), _T("Lose"), MB_OK) == IDOK)
+						{
+							NetworkModule::GetInstance().CleanUp();
+							Awake();
+						}
+					}
+					else
+					{
+						// win
+						if (MessageBox(hRootWnd, _T("GameEnd"), _T("Win"), MB_OK) == IDOK)
+						{
+							NetworkModule::GetInstance().CleanUp();
+							Awake();
+						}
+					}
+
+					break;
 				}
 
 				default:
@@ -234,6 +282,24 @@ void FixedUpdate()
 	renderTime += usdt;
 	turnTime -= usdt;
 
+	//HP
+	if ((int)(me.displayHP * 0.05f) != (int)(me.HP * 0.05f))
+	{
+		me.displayHP += (me.HP - me.displayHP) * usdt;
+	}
+	else
+	{
+		me.lastDisplayHp = me.displayHP = me.HP;
+	}
+	if ((int)(other.displayHP * 0.05f) != (int)(other.HP * 0.05f))
+	{
+		other.displayHP += (other.HP - other.displayHP) * usdt;
+	}
+	else
+	{
+		other.lastDisplayHp = other.displayHP = other.HP;
+	}
+
 	if (bullet.isAlive)
 	{
 		//movement 
@@ -251,11 +317,62 @@ void FixedUpdate()
 		//y = velocity * sin(еш) * t  - 1 / 2g * t ^ 2
 
 		//collision
-		if (bullet.position.y < 0)
+		//if (aabb(GetRect(bullet.position, bullet.size), GetRect(me.PlayerPosition, me.PlayerSize)))
+		//{
+		//	bullet.isAlive = false;
+		//	screenFreezeTime = 1.f;
+
+		//	HitMessage hit_message;
+		//	hit_message.pid = me.pid;
+		//	hit_message.position = (bullet.position + me.PlayerPosition) * 0.5f;
+		//	hit_message.amount = bullet.power * bullet.gravityTime;
+
+		//	Packet packet;
+		//	packet.opcode = OpCodes::kRequestHit;
+		//	packet.request.hit_message = hit_message;
+
+		//	NetworkModule::GetInstance().Send(packet.ToString());
+		//}
+
+		if (bullet.owner->pid == other.pid && aabb(GetRect(bullet.position, bullet.size), GetRect(me.PlayerPosition, me.PlayerSize)))
+		{
+			bullet.isAlive = false;
+			screenFreezeTime = 3.f;
+		}
+
+		if (bullet.owner->pid == me.pid && aabb(GetRect(bullet.position, bullet.size), GetRect(other.PlayerPosition, other.PlayerSize)))
+		{
+			bullet.isAlive = false;
+			screenFreezeTime = 3.f;
+
+			//hit
+			HitMessage hit_message;
+			hit_message.pid = other.pid;
+			hit_message.position = (bullet.position + other.PlayerPosition) * 0.5f;
+			hit_message.amount = bullet.power * bullet.gravityTime;
+
+			Packet hit_packet;
+			hit_packet.opcode = OpCodes::kRequestHit;
+			hit_packet.request.hit_message = hit_message;
+
+			NetworkModule::GetInstance().Send(hit_packet.ToString());
+
+			//turn end
+			TurnOverMessage turn_over_message;
+			turn_over_message.last_pid = me.pid;
+
+			Packet end_packet;
+			end_packet.opcode = OpCodes::kRequestTurnEnd;
+			end_packet.request.turn_over_message = turn_over_message;
+
+			NetworkModule::GetInstance().Send(end_packet.ToString());
+		}
+
+		else if (bullet.position.y < 0)
 		{
 			//release bullet
 			bullet.isAlive = false;
-			screenFreezeTime = 1.f;
+			screenFreezeTime = 0.7f;
 
 			//if myshoot
 			if (bullet.owner->pid == me.pid)
@@ -386,18 +503,6 @@ void OnKeyboardInput(HWND hWnd, WPARAM wParam)
 	{
 		case VK_SPACE:
 		{
-			//test PID request function
-			Packet packet;
-			packet.opcode = OpCodes::kRequestPID;
-			NetworkModule::GetInstance().Send(packet.ToString());
-
-			const auto message = NetworkModule::GetInstance().SyncDequeueMessage();
-			Packet received = Packet::ToPacket(message);
-			if (received.error_code != ErrorCodes::kOK)
-			{
-				//error
-				break;
-			}
 
 			//PID = received.response.pid_message.pid;
 
@@ -456,6 +561,8 @@ void Render(HWND hwnd, HDC hdc)
 	}
 
 	//ui
+
+	//status
 	if (!isConnected)
 	{
 		SetTextAlign(hdc, TA_CENTER);
@@ -479,14 +586,80 @@ void Render(HWND hwnd, HDC hdc)
 		TextOut(hdc, g_nClientWidth * 0.5, 10, turnInfo.c_str(), turnInfo.length());
 	}
 
+	//playerHP
+	if ((int)(me.displayHP * 0.05f) != (int)(me.HP * 0.05f))
+	{
+		vector2 barSize(60, 6);
+		float rate = me.displayHP * 0.0001f;
+		float lastRate = me.lastDisplayHp * 0.0001f;
+
+		//BackGround
+		brush = CreateSolidBrush(ToColor(vector3Int(51, 0, 0)));
+		last = (HBRUSH)SelectObject(hdc, brush);
+		Rectangle(hdc, RectToParam(GetRect(GetRenderPosition(me.PlayerPosition + vector2(0, me.PlayerSize.y * 0.75f)), barSize + vector2Int(1, 1))));
+		SelectObject(hdc, last);
+		DeleteObject(brush);
+
+		//LastHPBar
+		brush = CreateSolidBrush(ToColor(vector3Int(255, 244, 34)));
+		last = (HBRUSH)SelectObject(hdc, brush);
+		Rectangle(hdc, RectToParam(GetRect(GetRenderPosition(me.PlayerPosition + vector2(-(barSize.x * (1 - lastRate) * 0.5f), me.PlayerSize.y * 0.75f)), vector2(barSize.x *lastRate, barSize.y))));
+		SelectObject(hdc, last);
+		DeleteObject(brush);
+
+		//HPBar
+		brush = CreateSolidBrush(ToColor(vector3Int(251, 58, 50)));
+		last = (HBRUSH)SelectObject(hdc, brush);
+		Rectangle(hdc, RectToParam(GetRect(GetRenderPosition(me.PlayerPosition + vector2(-(barSize.x * (1 - rate) * 0.5f), me.PlayerSize.y * 0.75f)), vector2(barSize.x *rate, barSize.y))));
+		SelectObject(hdc, last);
+		DeleteObject(brush);
+
+		//me.displayHP += (me.HP - me.displayHP) * Time::GetInstance().GetDeltaTime() * 0.001f;
+	}
+	if ((int)(other.displayHP * 0.05f) != (int)(other.HP * 0.05f))
+	{
+		vector2 barSize(60, 6);
+		float rate = other.displayHP * 0.0001f;
+		float lastRate = other.lastDisplayHp * 0.0001f;
+
+		//BackGround
+		brush = CreateSolidBrush(ToColor(vector3Int(51, 0, 0)));
+		last = (HBRUSH)SelectObject(hdc, brush);
+		Rectangle(hdc, RectToParam(GetRect(GetRenderPosition(other.PlayerPosition + vector2(0, other.PlayerSize.y * 0.75f)), barSize + vector2Int(1, 1))));
+		SelectObject(hdc, last);
+		DeleteObject(brush);
+
+		//LastHPBar
+		brush = CreateSolidBrush(ToColor(vector3Int(255, 244, 34)));
+		last = (HBRUSH)SelectObject(hdc, brush);
+		Rectangle(hdc, RectToParam(GetRect(GetRenderPosition(other.PlayerPosition + vector2(-(barSize.x * (1 - lastRate) * 0.5f), other.PlayerSize.y * 0.75f)), vector2(barSize.x *lastRate, barSize.y))));
+		SelectObject(hdc, last);
+		DeleteObject(brush);
+
+		//HPBar
+		brush = CreateSolidBrush(ToColor(vector3Int(251, 58, 50)));
+		last = (HBRUSH)SelectObject(hdc, brush);
+		Rectangle(hdc, RectToParam(GetRect(GetRenderPosition(other.PlayerPosition + vector2(-(barSize.x * (1 - rate) * 0.5f), other.PlayerSize.y * 0.75f)), vector2(barSize.x *rate, barSize.y))));
+		SelectObject(hdc, last);
+		DeleteObject(brush);
+
+		//other.displayHP += (other.HP - other.displayHP) * Time::GetInstance().GetDeltaTime() * 0.001f;
+	}
+
 	//test
 	std::string tt(std::to_string(turnTime));
 	std::string mp(std::to_string(mousePosition.x).append(",").append(std::to_string(mousePosition.y)));
 	std::string wd(std::to_string(world.worldOffset.x).append(",").append(std::to_string(world.worldOffset.y)));
+	std::string mhp(std::to_string(me.HP).append(",").append(std::to_string(me.displayHP)).append(",").append(std::to_string(me.lastDisplayHp)));
+	std::string ohp(std::to_string(other.HP).append(",").append(std::to_string(other.displayHP)).append(",").append(std::to_string(other.lastDisplayHp)));
+	std::string bdmg(std::to_string(bullet.power * bullet.gravityTime));
 
 	TextOut(hdc, g_nClientWidth * 0.7, 20, tt.c_str(), tt.length());
 	TextOut(hdc, g_nClientWidth * 0.7, 40, mp.c_str(), mp.length());
 	TextOut(hdc, g_nClientWidth * 0.7, 60, wd.c_str(), wd.length());
+	TextOut(hdc, g_nClientWidth * 0.7, 80, mhp.c_str(), mhp.length());
+	TextOut(hdc, g_nClientWidth * 0.7, 100, ohp.c_str(), ohp.length());
+	TextOut(hdc, g_nClientWidth * 0.7, 120, bdmg.c_str(), bdmg.length());
 }
 
 #pragma endregion
@@ -726,4 +899,10 @@ const COLORREF ToColor(const vector3Int& color32)
 const COLORREF ToColor(const vector3& color)
 {
 	return ToColor(vector3Int(color * 255));
+}
+
+const bool aabb(RECT a, RECT b)
+{
+	return a.left < b.right && a.right > b.left &&
+		a.top < b.bottom && a.bottom > b.top;
 }

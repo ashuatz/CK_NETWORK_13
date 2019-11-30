@@ -110,14 +110,29 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR    lpCm
 
 //defines
 Matrix3x3 mat;
+
+//move
 bool bAllowMove;
+float moveSpeed;
+int moveDir;
+
+//turn
 bool isMyTurn;
 float turnTime = 0;
+
+//fire
+bool isPressed;
+float PressTime = 0;
+constexpr float maxPressTime = 1.5f;
+
+//camera movement
 float screenFreezeTime;
 
+//connection
 bool StartConnection;
 bool isConnected;
 
+//entities
 Player me;
 Player other;
 
@@ -205,6 +220,7 @@ void Update()
 				case OpCodes::kFire:
 				{
 					Player* shotter = me.pid == packet.response.fire_message.pid ? &me : &other;
+					bullet.power = packet.response.fire_message.power;
 					bullet.Init(packet.response.fire_message.target_position, shotter);
 					bullet.isAlive = true;
 
@@ -282,10 +298,16 @@ void FixedUpdate()
 	renderTime += usdt;
 	turnTime -= usdt;
 
+	if (isPressed)
+	{
+		PressTime += usdt;
+		PressTime = PressTime > maxPressTime ? maxPressTime : PressTime;
+	}
+
 	//HP
 	if ((int)(me.displayHP * 0.05f) != (int)(me.HP * 0.05f))
 	{
-		me.displayHP += (me.HP - me.displayHP) * usdt;
+		me.displayHP += (me.HP - me.displayHP) * sdt;
 	}
 	else
 	{
@@ -293,7 +315,7 @@ void FixedUpdate()
 	}
 	if ((int)(other.displayHP * 0.05f) != (int)(other.HP * 0.05f))
 	{
-		other.displayHP += (other.HP - other.displayHP) * usdt;
+		other.displayHP += (other.HP - other.displayHP) * sdt;
 	}
 	else
 	{
@@ -429,19 +451,14 @@ void OnMouseDown(int id)
 	{
 		case 0: //Lbutton Down
 		{
-
-			////test : bullet fire code
-			//bullet.Init(mousePosition, &me);
-			//bullet.isAlive = true;
+			PressTime = 0;
+			isPressed = true;
 
 			break;
 		}
 
 		case 1: // Rbutton Down
 		{
-
-			////test : bullet initialize Code
-			//bullet.Init(vector2(1, 1), &me);
 
 			break;
 		}
@@ -467,16 +484,31 @@ void OnMouseUp(int id)
 				break;
 			}
 
+			//30 ~ 150
+
+			//power = inputtime remap 30~150
+			//player generate position : 400 ~ 1250
+
+			//maping 0 ~ 1
+			// 0== (2 - (2 - 0))/2 / /1== 2 - (2 - 2)
+			
+			float pressRate = (PressTime > 2 ? 2 : PressTime) / maxPressTime;
+			float power = 30 + (120 * pressRate);
+
 			FireMessage fire_message;
 			fire_message.pid = me.pid;
 			fire_message.position = me.PlayerPosition;
 			fire_message.target_position = mousePosition;
+			fire_message.power = power;
 
 			Packet packet;
 			packet.opcode = OpCodes::kFire;
 			packet.request.fire_message = fire_message;
 
 			NetworkModule::GetInstance().Send(packet.ToString());
+
+			isPressed = false;
+
 			break;
 		}
 
@@ -586,6 +618,26 @@ void Render(HWND hwnd, HDC hdc)
 		TextOut(hdc, g_nClientWidth * 0.5, 10, turnInfo.c_str(), turnInfo.length());
 	}
 
+	//Charging
+	if (isPressed)
+	{
+		vector2 barSize(60, 6);
+		float rate = PressTime / maxPressTime;
+
+		brush = CreateSolidBrush(ToColor(vector3Int(0, 3, 38)));
+		last = (HBRUSH)SelectObject(hdc, brush);
+		Rectangle(hdc, RectToParam(GetRect(GetRenderPosition(me.PlayerPosition + vector2(0, me.PlayerSize.y * 0.75f) + vector2(0, 8)), barSize + vector2Int(1, 1))));
+		SelectObject(hdc, last);
+		DeleteObject(brush);
+
+		//HPBar
+		brush = CreateSolidBrush(ToColor(vector3Int(123, 133, 255)));
+		last = (HBRUSH)SelectObject(hdc, brush);
+		Rectangle(hdc, RectToParam(GetRect(GetRenderPosition(me.PlayerPosition + vector2(-(barSize.x * (1 - rate) * 0.5f), me.PlayerSize.y * 0.75f) + vector2(0, 8)), vector2(barSize.x *rate, barSize.y))));
+		SelectObject(hdc, last);
+		DeleteObject(brush);
+	}
+
 	//playerHP
 	if ((int)(me.displayHP * 0.05f) != (int)(me.HP * 0.05f))
 	{
@@ -645,6 +697,9 @@ void Render(HWND hwnd, HDC hdc)
 
 		//other.displayHP += (other.HP - other.displayHP) * Time::GetInstance().GetDeltaTime() * 0.001f;
 	}
+
+	//Player tracking ui
+
 
 	//test
 	std::string tt(std::to_string(turnTime));

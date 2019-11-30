@@ -39,12 +39,7 @@ public:
 
 	Bullet()
 	{
-		//30 ~ 150
-
-		//power = inputtime remap 30~150
-		//player generate position : 400 ~ 1250
-
-		power = 150; // 120 -1600 // 150 -2500
+		power = 30; // 120 -1600 // 150 -2500
 		moveDirection = vector2(1, 1);
 
 		position = vector2(0,0);

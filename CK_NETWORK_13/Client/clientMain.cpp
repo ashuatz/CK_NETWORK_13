@@ -269,6 +269,7 @@ void Update()
 					if (damaged.HP <= 0 && damaged.pid == me.pid)
 					{
 						GameEndMessage game_end_message;
+						game_end_message.error = false;
 						game_end_message.pid = me.pid;
 
 						Packet end_packet;
@@ -283,10 +284,21 @@ void Update()
 
 				case OpCodes::kGameEnd:
 				{
+					if (packet.response.game_end_message.error)
+					{
+						if (MessageBox(hRootWnd, _T("상대와의 연결이 끊어졌습니다."), _T("Game End"), MB_OK) == IDOK)
+						{
+							NetworkModule::GetInstance().CleanUp();
+							Awake();
+						}
+
+						break;
+					}
+
 					if (packet.response.game_end_message.pid == me.pid)
 					{
 						// lose
-						if (MessageBox(hRootWnd, _T("GameEnd"), _T("Lose"), MB_OK) == IDOK)
+						if (MessageBox(hRootWnd, _T("패배하셨습니다"), _T("Game End"), MB_OK) == IDOK)
 						{
 							NetworkModule::GetInstance().CleanUp();
 							Awake();
@@ -295,7 +307,7 @@ void Update()
 					else
 					{
 						// win
-						if (MessageBox(hRootWnd, _T("GameEnd"), _T("Win"), MB_OK) == IDOK)
+						if (MessageBox(hRootWnd, _T("승리하셨습니다"), _T("Game End"), MB_OK) == IDOK)
 						{
 							NetworkModule::GetInstance().CleanUp();
 							Awake();

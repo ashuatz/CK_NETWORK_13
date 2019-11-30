@@ -157,6 +157,22 @@ DWORD WINAPI ProcessClient(LPVOID arg)
 	}), connections.end());
 
 	closesocket(client_sock);
+
+	//send error to connected users
+	GameEndMessage game_end_message;
+	game_end_message.error = true;
+	game_end_message.pid = -1;
+
+	Packet packet;
+	packet.opcode = OpCodes::kGameEnd;
+	packet.error_code = ErrorCodes::kOK;
+	packet.response.game_end_message = game_end_message;
+
+	for (auto it : connections)
+	{
+		Send(packet, it.sock);
+	}
+
 	connectionsLock.unlock();
 
 	printf("[TCP 서버] 클라이언트 종료: IP 주소=%s, 포트 번호=%d\n", inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port));

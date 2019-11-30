@@ -49,7 +49,6 @@ enum class OpCodes
 	kRequestHit, // 24
 	kResponseHit,
 
-
 	kGameEnd,
 };
 
@@ -154,6 +153,8 @@ struct TurnOverMessage
 
 struct GameEndMessage
 {
+	bool error;
+
 	int pid;
 };
 

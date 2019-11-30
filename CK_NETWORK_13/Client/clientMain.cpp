@@ -6,7 +6,6 @@
 #include "Timer.h"
 #include "object.h"
 #include "packet.h"
-
 #include "resource.h"
 
 #include <Windows.h>
@@ -42,10 +41,36 @@ BOOL CALLBACK ConnectDlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
 #define Vector2ToParam(vector) vector.x,vector.y
 const RECT GetRect(const vector2& position, const vector2& size);
 const vector2 GetRenderPosition(const vector2& position);
+const vector2 GetViewPortPosition(const vector2& position);
 const vector2 ScreenToWorldPosition(const vector2& position);
 const COLORREF ToColor(const vector3Int& color32);
 const COLORREF ToColor(const vector3& color);
 const bool aabb(RECT a, RECT b);
+
+#pragma region Math
+
+template<typename T>
+const T abs(const T& rhs)
+{
+	return rhs > 0 ? rhs : -rhs;
+}
+
+template<typename T>
+const int sign(const T& val)
+{
+	return (T(0) < val) - (val < T(0));
+}
+static float lerp(const float& a, const float& b, const float& f)
+{
+	return a + f * (b - a);
+}
+
+static float clamp(const float& min, const float& max, const float& value)
+{
+	return value < min ? min : (value > max ? max : value);
+}
+
+#pragma endregion
 
 #pragma region Windows
 
@@ -186,7 +211,7 @@ void Awake()
 	me.PlayerPosition = vector2(0, 0);
 	me.PlayerSize = vector2(20, 20);
 
-	bullet.Init(vector2(1, 1),&me);
+	bullet.Init(vector2(1, 1), &me);
 }
 
 //client update
@@ -307,7 +332,7 @@ void FixedUpdate()
 	//HP
 	if ((int)(me.displayHP * 0.05f) != (int)(me.HP * 0.05f))
 	{
-		me.displayHP += (me.HP - me.displayHP) * sdt;
+		me.displayHP += (me.HP - me.displayHP) * usdt * 3;
 	}
 	else
 	{
@@ -315,7 +340,7 @@ void FixedUpdate()
 	}
 	if ((int)(other.displayHP * 0.05f) != (int)(other.HP * 0.05f))
 	{
-		other.displayHP += (other.HP - other.displayHP) * sdt;
+		other.displayHP += (other.HP - other.displayHP) * usdt * 3;
 	}
 	else
 	{
@@ -335,37 +360,16 @@ void FixedUpdate()
 		//camera follow bulletPosition
 		world.worldOffset += (-bullet.position - world.worldOffset)  * sdt;
 
-		//x = velocity * cos(еш) * t
-		//y = velocity * sin(еш) * t  - 1 / 2g * t ^ 2
-
-		//collision
-		//if (aabb(GetRect(bullet.position, bullet.size), GetRect(me.PlayerPosition, me.PlayerSize)))
-		//{
-		//	bullet.isAlive = false;
-		//	screenFreezeTime = 1.f;
-
-		//	HitMessage hit_message;
-		//	hit_message.pid = me.pid;
-		//	hit_message.position = (bullet.position + me.PlayerPosition) * 0.5f;
-		//	hit_message.amount = bullet.power * bullet.gravityTime;
-
-		//	Packet packet;
-		//	packet.opcode = OpCodes::kRequestHit;
-		//	packet.request.hit_message = hit_message;
-
-		//	NetworkModule::GetInstance().Send(packet.ToString());
-		//}
-
 		if (bullet.owner->pid == other.pid && aabb(GetRect(bullet.position, bullet.size), GetRect(me.PlayerPosition, me.PlayerSize)))
 		{
 			bullet.isAlive = false;
-			screenFreezeTime = 3.f;
+			screenFreezeTime = 2.4f;
 		}
 
 		if (bullet.owner->pid == me.pid && aabb(GetRect(bullet.position, bullet.size), GetRect(other.PlayerPosition, other.PlayerSize)))
 		{
 			bullet.isAlive = false;
-			screenFreezeTime = 3.f;
+			screenFreezeTime = 2.4f;
 
 			//hit
 			HitMessage hit_message;
@@ -491,7 +495,7 @@ void OnMouseUp(int id)
 
 			//maping 0 ~ 1
 			// 0== (2 - (2 - 0))/2 / /1== 2 - (2 - 2)
-			
+
 			float pressRate = (PressTime > 2 ? 2 : PressTime) / maxPressTime;
 			float power = 30 + (120 * pressRate);
 
@@ -540,11 +544,11 @@ void OnKeyboardInput(HWND hWnd, WPARAM wParam)
 
 			break;
 		}
-		case VK_DOWN: world.defaultWorldOffset += vector2(0, -5); break;
-		case VK_UP:world.defaultWorldOffset += vector2(0, 5); break;
+		case VK_DOWN: world.worldOffset += vector2(0, -5); break;
+		case VK_UP:world.worldOffset += vector2(0, 5); break;
 
-		case VK_LEFT:world.defaultWorldOffset += vector2(5, 0); break;
-		case VK_RIGHT:world.defaultWorldOffset += vector2(-5, 0); break;
+		case VK_LEFT:world.worldOffset += vector2(5, 0); break;
+		case VK_RIGHT:world.worldOffset += vector2(-5, 0); break;
 
 		default:
 			break;
@@ -598,7 +602,7 @@ void Render(HWND hwnd, HDC hdc)
 	if (!isConnected)
 	{
 		SetTextAlign(hdc, TA_CENTER);
-		std::string turnInfo("Test world"); 
+		std::string turnInfo("Test world");
 		TextOut(hdc, g_nClientWidth * 0.5, 10, turnInfo.c_str(), turnInfo.length());
 
 		SetTextAlign(hdc, TA_LEFT);
@@ -608,7 +612,7 @@ void Render(HWND hwnd, HDC hdc)
 	else if (isMyTurn)
 	{
 		SetTextAlign(hdc, TA_CENTER);
-		std::string turnInfo("My turn"); 
+		std::string turnInfo("My turn");
 		TextOut(hdc, g_nClientWidth * 0.5, 10, turnInfo.c_str(), turnInfo.length());
 	}
 	else
@@ -699,22 +703,48 @@ void Render(HWND hwnd, HDC hdc)
 	}
 
 	//Player tracking ui
+	vector2 otherScreenPosition = GetRenderPosition(other.PlayerPosition);
+
+	vector2 dir = otherScreenPosition - GetViewPortPosition(vector2());
+	vector2 screenSize(g_nClientWidth * 0.5f - 50, g_nClientHeight * 0.5f - 120);
+
+	if (abs(dir.y) > screenSize.y || abs(dir.x) > screenSize.x)
+	{
+		float slope = dir.y / dir.x;
+
+
+		dir.y = clamp(-screenSize.y, screenSize.y, dir.y);
+		dir.x = slope == 0 ? dir.x : (dir.y / slope);
+		if (abs(dir.x) > screenSize.x)
+		{
+			dir.x = clamp(-screenSize.x, screenSize.x, dir.x);
+			dir.y = slope * dir.x;
+		}
+
+		brush = CreateSolidBrush(ToColor(other.color32));
+		last = (HBRUSH)SelectObject(hdc, brush);
+		Ellipse(hdc, RectToParam(GetRect((GetViewPortPosition(vector2()) + dir), other.PlayerSize * 0.5f)));
+		SelectObject(hdc, last);
+		DeleteObject(brush);
+
+		//MoveToEx(hdc, Vector2ToParam(GetViewPortPosition( vector2())), 0);
+		//LineTo(hdc, Vector2ToParam((GetViewPortPosition(vector2()) + dir)));
+	}
+
 
 
 	//test
 	std::string tt(std::to_string(turnTime));
 	std::string mp(std::to_string(mousePosition.x).append(",").append(std::to_string(mousePosition.y)));
-	std::string wd(std::to_string(world.worldOffset.x).append(",").append(std::to_string(world.worldOffset.y)));
-	std::string mhp(std::to_string(me.HP).append(",").append(std::to_string(me.displayHP)).append(",").append(std::to_string(me.lastDisplayHp)));
-	std::string ohp(std::to_string(other.HP).append(",").append(std::to_string(other.displayHP)).append(",").append(std::to_string(other.lastDisplayHp)));
-	std::string bdmg(std::to_string(bullet.power * bullet.gravityTime));
+	std::string wd(std::string("world offset :").append(std::to_string(world.worldOffset.x).append(",").append(std::to_string(world.worldOffset.y))));
+	std::string pps(std::string("dir :").append(std::to_string(dir.x).append(",").append(std::to_string(dir.y))));
+	std::string vp(std::string("viewPort :").append(std::to_string(GetViewPortPosition(vector2()).x).append(",").append(std::to_string(GetViewPortPosition(vector2()).y))));
 
 	TextOut(hdc, g_nClientWidth * 0.7, 20, tt.c_str(), tt.length());
 	TextOut(hdc, g_nClientWidth * 0.7, 40, mp.c_str(), mp.length());
 	TextOut(hdc, g_nClientWidth * 0.7, 60, wd.c_str(), wd.length());
-	TextOut(hdc, g_nClientWidth * 0.7, 80, mhp.c_str(), mhp.length());
-	TextOut(hdc, g_nClientWidth * 0.7, 100, ohp.c_str(), ohp.length());
-	TextOut(hdc, g_nClientWidth * 0.7, 120, bdmg.c_str(), bdmg.length());
+	TextOut(hdc, g_nClientWidth * 0.7, 80, vp.c_str(), vp.length());
+	TextOut(hdc, g_nClientWidth * 0.7, 120, pps.c_str(), pps.length());
 }
 
 #pragma endregion
@@ -933,6 +963,13 @@ const vector2 GetRenderPosition(const vector2& position)
 	return vector2(
 		g_nClientWidth * 0.5f + position.x + world.worldOffset.x,
 		g_nClientHeight * 0.5f - (position.y + world.worldOffset.y));
+}
+
+const vector2 GetViewPortPosition(const vector2& position)
+{
+	return vector2(
+		g_nClientWidth * 0.5f + position.x,
+		g_nClientHeight * 0.5f - position.y);
 }
 
 const vector2 ScreenToWorldPosition(const vector2& position)

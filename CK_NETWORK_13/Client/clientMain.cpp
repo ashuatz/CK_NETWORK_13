@@ -166,6 +166,9 @@ void Awake()
 	StartConnection = false;
 	isConnected = false;
 
+	//test world input
+	isMyTurn = true;
+
 	me.PlayerPosition = vector2(0, 0);
 	me.PlayerScale = vector2(1, 1);
 	me.PlayerSize = vector2(20, 20);
@@ -188,6 +191,9 @@ void Update()
 
 		isMyTurn = received.response.Initialize_message.isFirst;
 		turnTime = received.response.Initialize_message.default_turn_time;
+
+		world.defaultWorldOffset = isMyTurn ? -me.PlayerPosition : -other.PlayerPosition;
+
 	}
 
 	auto message = NetworkModule::GetInstance().dequeueMessage();
@@ -208,14 +214,8 @@ void Update()
 
 				case OpCodes::kResponseTurnEnd:
 				{
-					if (packet.response.turn_over_message.current_pid == me.pid)
-					{
-						isMyTurn = true;
-					}
-					else
-					{
-						isMyTurn = false;
-					}
+					isMyTurn = packet.response.turn_over_message.current_pid == me.pid;
+					world.defaultWorldOffset = isMyTurn ? -me.PlayerPosition : -other.PlayerPosition;
 				}
 
 				default:
@@ -342,6 +342,14 @@ void OnMouseUp(int id)
 	{
 		case 0: //Lbutton Up
 		{
+			//testworld code
+			if (!isConnected)
+			{
+				bullet.Init(mousePosition, &me);
+				bullet.isAlive = true;
+				break;
+			}
+
 			FireMessage fire_message;
 			fire_message.pid = me.pid;
 			fire_message.position = me.PlayerPosition;
@@ -416,6 +424,16 @@ void Render(HWND hwnd, HDC hdc)
 	//horizon
 	MoveToEx(hdc, Vector2ToParam(GetRenderPosition(vector2(-INT16_MAX, 0))), 0);
 	LineTo(hdc, Vector2ToParam(GetRenderPosition(vector2(INT16_MAX, 0))));
+
+	//aim line
+	if (isMyTurn && !bullet.isAlive)
+	{
+		auto myRenderPos = GetRenderPosition(me.PlayerPosition);
+		auto mouseRenderPos = GetRenderPosition(mousePosition);
+
+		MoveToEx(hdc, Vector2ToParam(myRenderPos), 0);
+		LineTo(hdc, Vector2ToParam(((mouseRenderPos - myRenderPos).Normalized() * 1000 + myRenderPos)));
+	}
 
 	//player
 	HBRUSH brush = CreateSolidBrush(ToColor(me.color32));

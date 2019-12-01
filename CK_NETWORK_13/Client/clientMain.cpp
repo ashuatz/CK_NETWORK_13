@@ -282,18 +282,6 @@ void Update()
 					if (damaged.HP < 0)
 						damaged.HP = 0;
 
-					if (damaged.HP <= 0 && damaged.pid == me.pid)
-					{
-						GameEndMessage game_end_message;
-						game_end_message.error = false;
-						game_end_message.pid = me.pid;
-
-						Packet end_packet;
-						end_packet.opcode = OpCodes::kGameEnd;
-						end_packet.request.game_end_message;
-
-						NetworkModule::GetInstance().Send(end_packet.ToString());
-					}
 
 					break;
 				}
@@ -398,6 +386,19 @@ void FixedUpdate()
 	if ((int)(me.displayHP * 0.05f) != (int)(me.HP * 0.05f))
 	{
 		me.displayHP += (me.HP - me.displayHP) * usdt * 3;
+
+		if (me.displayHP <= 0)
+		{
+			GameEndMessage game_end_message;
+			game_end_message.error = false;
+			game_end_message.pid = me.pid;
+
+			Packet end_packet;
+			end_packet.opcode = OpCodes::kGameEnd;
+			end_packet.request.game_end_message;
+
+			NetworkModule::GetInstance().Send(end_packet.ToString());
+		}
 	}
 	else
 	{

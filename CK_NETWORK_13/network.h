@@ -45,8 +45,6 @@ private:
 
 public:
 
-	//192.168.31.115 - 정석님
-	//192.168.31.38 - 나
 	constexpr static auto _LOOP_BACK_IP = "127.0.0.1";
 	constexpr static auto _PACKET_SIZE_ = 256;
 	constexpr static auto _TARGET_PORT_ = 3317;
@@ -205,14 +203,4 @@ public:
 
 	const bool getIsConnected() const { return isConnected; }
 	const bool getIsInitialized() const { return isInitialized; }
-
 };
-
-
-/*
- * 데이터 직렬화(serialization) 고민하기
- * 데이터를 어떻게 넘길 것인가 고민하기
- * 메시지큐 스레드 세이프하게 작성하기 (cs/mutex)
- * 가변 데이터 전달 로직
- *
- */

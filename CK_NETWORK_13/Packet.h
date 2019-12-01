@@ -19,26 +19,9 @@ enum class OpCodes
 {
 	None = 0,
 
-	//connected
-
-	//초기화 요청. 
-	//플레이어 카운트가 1일 경우 처리하지 않고 대기.
-	//플레이어 카운트가 2일 경우 모든 플레이어에게 연결수립 확인 메시지
 	kRequestInitialize = 1,
 	kResponseInitialize,
 
-	//
-
-	//match making
-	//kRequestPID = 10,	//pid 생성 및 전달 요청
-	//kResponsePID,
-
-	//kRequestFirst, // 누가 선공인가
-	//kResponseFirst,
-
-	//kStart,
-
-	//in game
 	kFire = 20,
 
 	kRequestTurnEnd, // 21
@@ -75,13 +58,6 @@ enum class ErrorCodes
 
 	kAlreadyProgress = 140,
 	kTransaction = 144
-};
-
-enum class SendType
-{
-	None,
-	One,
-	All
 };
 
 struct InitializeMessage
@@ -156,16 +132,6 @@ struct GameEndMessage
 	bool error;
 
 	int pid;
-};
-
-struct namae
-{
-	//move target
-	int pid;
-
-	//next pid
-	const char* tt;
-
 };
 
 struct Packet

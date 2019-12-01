@@ -134,6 +134,8 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR    lpCm
 
 #pragma region GameLoop
 
+bool isEnd;
+
 //move
 Player* mover;
 bool bAllowMove;
@@ -206,6 +208,7 @@ void Awake()
 	StartConnection = false;
 	isConnected = false;
 
+	isEnd = false;
 	//test world input
 	isMyTurn = true;
 
@@ -213,6 +216,8 @@ void Awake()
 	me.PlayerSize = vector2(20, 20);
 
 	bullet.Init(vector2(1, 1), &me);
+
+	world.defaultWorldOffset = me.PlayerPosition;
 }
 
 //client update
@@ -386,9 +391,15 @@ void FixedUpdate()
 	if ((int)(me.displayHP * 0.05f) != (int)(me.HP * 0.05f))
 	{
 		me.displayHP += (me.HP - me.displayHP) * usdt * 3;
+	}
+	else
+	{
+		me.lastDisplayHp = me.displayHP = me.HP;
 
-		if (me.displayHP <= 0)
+		if (me.HP == 0 && !isEnd)
 		{
+			isEnd = true;
+
 			GameEndMessage game_end_message;
 			game_end_message.error = false;
 			game_end_message.pid = me.pid;
@@ -399,10 +410,6 @@ void FixedUpdate()
 
 			NetworkModule::GetInstance().Send(end_packet.ToString());
 		}
-	}
-	else
-	{
-		me.lastDisplayHp = me.displayHP = me.HP;
 	}
 	if ((int)(other.displayHP * 0.05f) != (int)(other.HP * 0.05f))
 	{

@@ -374,6 +374,21 @@ void Protocol(Packet& received, SOCKET sender)
 			break;
 		}
 
+		case OpCodes::kMove:
+		{
+			Packet packet;
+			packet.opcode = OpCodes::kMove;
+			packet.error_code = ErrorCodes::kOK;
+			packet.response.move_message = received.request.move_message;
+
+			for (auto it : connections)
+			{
+				Send(packet, it.sock);
+			}
+
+			break;
+		}
+
 		default:
 		{
 			//default is RPC

@@ -29,7 +29,7 @@ void FixedUpdate();
 //Input / Game Event
 void OnMouseDown(int id);
 void OnMouseUp(int id);
-void OnKeyboardInput(HWND hWnd, WPARAM wParam);
+void OnKeyboardInput(HWND hWnd, WPARAM wParam, bool isDown);
 void Render(HWND hwnd, HDC hdc);
 
 //procedure
@@ -135,9 +135,12 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR    lpCm
 #pragma region GameLoop
 
 //move
+Player* mover;
 bool bAllowMove;
-float moveSpeed;
 int moveDir;
+float allowedMoveTime;
+constexpr float moveSpeed = 5;
+constexpr float maxMoveTime = 3;
 
 //turn
 bool isMyTurn;
@@ -215,6 +218,7 @@ void Awake()
 //client update
 void Update()
 {
+	//connection stat check
 	if (StartConnection)
 	{
 		StartConnection = false;
@@ -230,8 +234,14 @@ void Update()
 
 		world.defaultWorldOffset = isMyTurn ? -me.PlayerPosition : -other.PlayerPosition;
 
+		if (isMyTurn)
+		{
+			bAllowMove = true;
+			allowedMoveTime = maxMoveTime;
+		}
 	}
 
+	//message control
 	auto message = NetworkModule::GetInstance().dequeueMessage();
 	if (message.length() > 0)
 	{
@@ -254,6 +264,12 @@ void Update()
 				{
 					isMyTurn = packet.response.turn_over_message.current_pid == me.pid;
 					world.defaultWorldOffset = isMyTurn ? -me.PlayerPosition : -other.PlayerPosition;
+
+					if (isMyTurn)
+					{
+						bAllowMove = true;
+						allowedMoveTime = maxMoveTime;
+					}
 
 					break;
 				}
@@ -317,6 +333,30 @@ void Update()
 					break;
 				}
 
+				case OpCodes::kMove:
+				{
+					mover = me.pid == packet.response.move_message.pid ? &me : &other;
+					mover->PlayerPosition = packet.response.move_message.position;
+					//stop
+					if (packet.response.move_message.isKeyDown == false)
+					{
+						moveDir = 0;
+						bAllowMove = false;
+
+						mover->PlayerPosition = packet.response.move_message.position;
+					}
+					else if (packet.response.move_message.KeyCode == VK_RIGHT)
+					{
+						moveDir = 1;
+					}
+					else if (packet.response.move_message.KeyCode == VK_LEFT)
+					{
+						moveDir = -1;
+					}
+
+					break;
+				}
+
 				default:
 					break;
 			}
@@ -337,6 +377,21 @@ void FixedUpdate()
 	{
 		PressTime += usdt;
 		PressTime = PressTime > maxPressTime ? maxPressTime : PressTime;
+	}
+
+	if (moveDir != 0)
+	{
+		mover->PlayerPosition += vector2(moveDir * moveSpeed * sdt, 0);
+		allowedMoveTime -= usdt;
+
+		world.defaultWorldOffset = -mover->PlayerPosition;
+
+		if (allowedMoveTime < 0)
+		{
+			moveDir = 0;
+			allowedMoveTime = 0;
+			bAllowMove = false;
+		}
 	}
 
 	//HP
@@ -385,7 +440,7 @@ void FixedUpdate()
 			HitMessage hit_message;
 			hit_message.pid = other.pid;
 			hit_message.position = (bullet.position + other.PlayerPosition) * 0.5f;
-			hit_message.amount = bullet.power * bullet.gravityTime;
+			hit_message.amount = bullet.power * bullet.gravityTime * 1.5f;
 
 			Packet hit_packet;
 			hit_packet.opcode = OpCodes::kRequestHit;
@@ -461,6 +516,9 @@ void OnMouseDown(int id)
 	if (!isMyTurn)
 		return;
 
+	if (moveDir != 0)
+		return;
+
 	switch (id)
 	{
 		case 0: //Lbutton Down
@@ -484,6 +542,9 @@ void OnMouseDown(int id)
 void OnMouseUp(int id)
 {
 	if (!isMyTurn)
+		return;
+
+	if (moveDir != 0)
 		return;
 
 	switch (id)
@@ -532,9 +593,15 @@ void OnMouseUp(int id)
 }
 
 //call by WM
-void OnKeyboardInput(HWND hWnd, WPARAM wParam)
+void OnKeyboardInput(HWND hWnd, WPARAM wParam, bool isDown)
 {
 	if (!isMyTurn)
+		return;
+
+	if (!bAllowMove)
+		return;
+
+	if (isPressed)
 		return;
 
 	//send message to server (IO)
@@ -547,16 +614,40 @@ void OnKeyboardInput(HWND hWnd, WPARAM wParam)
 	{
 		case VK_SPACE:
 		{
-
-			//PID = received.response.pid_message.pid;
-
 			break;
 		}
-		case VK_DOWN: world.worldOffset += vector2(0, -5); break;
-		case VK_UP:world.worldOffset += vector2(0, 5); break;
 
-		case VK_LEFT:world.worldOffset += vector2(5, 0); break;
-		case VK_RIGHT:world.worldOffset += vector2(-5, 0); break;
+		case VK_LEFT:
+		{
+			MoveMessage move_message;
+			move_message.KeyCode = VK_LEFT;
+			move_message.isKeyDown = isDown;
+			move_message.pid = me.pid;
+			move_message.position = me.PlayerPosition;
+
+			Packet packet;
+			packet.opcode = OpCodes::kMove;
+			packet.request.move_message = move_message;
+
+			NetworkModule::GetInstance().Send(packet.ToString());
+			break;
+		}
+
+		case VK_RIGHT:
+		{
+			MoveMessage move_message;
+			move_message.KeyCode = VK_RIGHT;
+			move_message.isKeyDown = isDown;
+			move_message.pid = me.pid;
+			move_message.position = me.PlayerPosition;
+
+			Packet packet;
+			packet.opcode = OpCodes::kMove;
+			packet.request.move_message = move_message;
+
+			NetworkModule::GetInstance().Send(packet.ToString());
+			break;
+		}
 
 		default:
 			break;
@@ -573,6 +664,12 @@ void Render(HWND hwnd, HDC hdc)
 	//horizon
 	MoveToEx(hdc, Vector2ToParam(GetRenderPosition(vector2(-INT16_MAX, 0))), 0);
 	LineTo(hdc, Vector2ToParam(GetRenderPosition(vector2(INT16_MAX, 0))));
+
+	for (int i = -2000; i <= 2000; i += 100)
+	{
+		MoveToEx(hdc, Vector2ToParam(GetRenderPosition(vector2(i, 0))), 0);
+		LineTo(hdc, Vector2ToParam(GetRenderPosition(vector2(i, 1000))));
+	}
 
 	//aim line
 	if (isMyTurn && !bullet.isAlive)
@@ -628,6 +725,26 @@ void Render(HWND hwnd, HDC hdc)
 		SetTextAlign(hdc, TA_CENTER);
 		std::string turnInfo("waiting..");
 		TextOut(hdc, g_nClientWidth * 0.5, 10, turnInfo.c_str(), turnInfo.length());
+	}
+	
+	//moving
+	if (moveDir != 0)
+	{
+		vector2 barSize(60, 6);
+		float rate = allowedMoveTime / maxMoveTime;
+
+		brush = CreateSolidBrush(ToColor(vector3Int(54, 34, 22)));
+		last = (HBRUSH)SelectObject(hdc, brush);
+		Rectangle(hdc, RectToParam(GetRect(GetRenderPosition(me.PlayerPosition - vector2(0, me.PlayerSize.y * 0.75f) - vector2(0, 8)), barSize + vector2Int(1, 1))));
+		SelectObject(hdc, last);
+		DeleteObject(brush);
+
+		//HPBar
+		brush = CreateSolidBrush(ToColor(vector3Int(185, 122, 87)));
+		last = (HBRUSH)SelectObject(hdc, brush);
+		Rectangle(hdc, RectToParam(GetRect(GetRenderPosition(me.PlayerPosition + vector2(-(barSize.x * (1 - rate) * 0.5f), -me.PlayerSize.y * 0.75f) - vector2(0, 8)), vector2(barSize.x *rate, barSize.y))));
+		SelectObject(hdc, last);
+		DeleteObject(brush);
 	}
 
 	//Charging
@@ -796,7 +913,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 		case WM_KEYDOWN:
 		{
-			OnKeyboardInput(hWnd, wParam);
+			OnKeyboardInput(hWnd, wParam, true);
+
+			return 0;
+		}
+
+		case WM_KEYUP:
+		{
+			OnKeyboardInput(hWnd, wParam, false);
 
 			return 0;
 		}
